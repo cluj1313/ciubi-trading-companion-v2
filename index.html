@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   :root{--bg:#070b14;--bg-2:#0b111f;--card:#0f1729;--card-2:#111a2e;--border:rgba(255,255,255,.08);--border-strong:rgba(255,255,255,.16);--text:#e7ecf6;--text-dim:#8291ac;--text-faint:#8b9bb4;--orange:#f5a623;--orange-2:#f7931e;--green:#3ee6a6;--red:#fb7185;--radius:18px;}
+  body.light{--bg:#f2f4f8;--bg-2:#ffffff;--card:#ffffff;--card-2:#e9edf3;--border:rgba(20,30,55,.10);--border-strong:rgba(20,30,55,.20);--text:#18213a;--text-dim:#4d5a75;--text-faint:#7c8699;--orange:#d97b00;--orange-2:#c96f00;--green:#0c8f60;--red:#cf3d5e;}
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:16px;font-size:14px;}
@@ -100,6 +101,7 @@
   .ta-check{display:flex;align-items:center;gap:8px;font-size:.75rem;padding:3px 0;color:var(--text);}
   .ta-check input{width:16px;height:16px;accent-color:var(--orange);}
   #undo-btn{position:fixed;right:12px;bottom:12px;z-index:50;background:var(--card-2);color:var(--text);border:1px solid var(--orange);border-radius:999px;padding:9px 16px;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5);}
+  #theme-btn{position:fixed;right:12px;bottom:56px;z-index:50;background:var(--card-2);color:var(--text);border:1px solid var(--border-strong);border-radius:999px;padding:9px 13px;font-size:.85rem;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5);}
 </style>
 </head>
 <body>
@@ -108,6 +110,7 @@
 <script>
 const DEFAULT_STATE = {
   tab: 'dashboard',
+  theme: 'dark',
   plan: { pair:'', direction:'', htfBias:'', session:'', setup:'', setupNotes:'', riskPercent:'', plannedRR:'', checklist:Array(10).fill(false), decision:'' },
   planActive: false,
   activeExecution: { entry:'', sl:'', tp:'', exit:'', executionQuality:'Clean', entryStatus:'Waiting' },
@@ -169,6 +172,7 @@ function guardState(){
   if(!state.timeAlerts) state.timeAlerts = JSON.parse(JSON.stringify(DEFAULT_STATE.timeAlerts));
   if(!state.timeLog) state.timeLog = [];
   if(!state.dailyReviews) state.dailyReviews = {};
+  if(!state.theme) state.theme = 'dark';
 }
 function doUndo(){
   if(!undoStack.length) return;
@@ -186,6 +190,20 @@ function doUndo(){
 function updateUndoBtn(){
   const b = document.getElementById('undo-btn');
   if(b) b.textContent = `↩ Undo (${undoStack.length})`;
+}
+
+/* ---------------- TEMA light/dark (V2.19) ---------------- */
+function toggleTheme(){
+  state.theme = state.theme==='light' ? 'dark' : 'light';
+  saveState();
+  applyTheme();
+}
+function applyTheme(){
+  document.body.classList.toggle('light', state.theme==='light');
+  const b = document.getElementById('theme-btn');
+  if(b) b.textContent = state.theme==='light' ? '☀️' : '🌙';
+  const mc = document.querySelector('meta[name="theme-color"]');
+  if(mc) mc.content = state.theme==='light' ? '#f2f4f8' : '#070b14';
 }
 
 async function loadState(){
@@ -234,7 +252,7 @@ function importBackup(file){
   r.readAsText(file);
 }
 
-/* ---------------- CSV export (V2.16) ---------------- */
+/* ---------------- CSV export ---------------- */
 function exportCSV(){
   const rows = [['Date','Pair','Direction','HTF','Setup','Entry','SL','Exit','R','Note','Compliance','Session','AddNote']];
   state.trades.forEach(t=>{
@@ -252,16 +270,17 @@ function exportCSV(){
   URL.revokeObjectURL(a.href);
 }
 
-/* ---------------- equity curve (V2.16) ---------------- */
+/* ---------------- equity curve ---------------- */
 function drawEquity(){
   const c = document.getElementById('eq-cv');
   if(!c) return;
   const closed = closedTrades();
   const x = c.getContext('2d');
+  const isL = state.theme==='light';
   if(!closed.length){
     c.width = c.clientWidth*2; c.height = 200;
     x.clearRect(0,0,c.width,c.height);
-    x.fillStyle = '#8b9bb4'; x.font = '22px system-ui';
+    x.fillStyle = isL?'#7c8699':'#8b9bb4'; x.font = '22px system-ui';
     x.fillText('Adaugă trade-uri pentru curba de equity.', 20, 100);
     return;
   }
@@ -273,21 +292,21 @@ function drawEquity(){
   const Y = v=>H-20 - ((v-(mn-pad))/((mx+pad)-(mn-pad)))*(H-40);
   x.clearRect(0,0,W,H);
   if(mn<0 && mx>0){
-    x.strokeStyle='rgba(255,255,255,.15)'; x.setLineDash([6,6]);
+    x.strokeStyle = isL?'rgba(0,0,0,.18)':'rgba(255,255,255,.15)'; x.setLineDash([6,6]);
     x.beginPath(); x.moveTo(10,Y(0)); x.lineTo(W-10,Y(0)); x.stroke(); x.setLineDash([]);
   }
   x.beginPath();
   pts.forEach((v,i)=> i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));
   const up = pts[pts.length-1] >= 0;
-  x.strokeStyle = up ? '#3ee6a6' : '#fb7185'; x.lineWidth = 3; x.stroke();
+  x.strokeStyle = up ? (isL?'#0c8f60':'#3ee6a6') : (isL?'#cf3d5e':'#fb7185'); x.lineWidth = 3; x.stroke();
   x.lineTo(W-10,H); x.lineTo(10,H); x.closePath();
   x.fillStyle = up ? 'rgba(62,230,166,.10)' : 'rgba(251,113,133,.10)'; x.fill();
-  x.fillStyle = '#8b9bb4'; x.font = '20px system-ui';
+  x.fillStyle = isL?'#7c8699':'#8b9bb4'; x.font = '20px system-ui';
   x.fillText('max ' + fmtR(mx), 12, 24);
   x.fillText('min ' + fmtR(mn), 12, H-6);
 }
 
-/* ---------------- calculator pozitie (V2.16) ---------------- */
+/* ---------------- calculator pozitie ---------------- */
 function calcPos(){
   const g = id=>{ const el=document.getElementById(id); return el?parseFloat(el.value):NaN; };
   const bal = g('pc-bal'), risk = g('pc-risk'), sl = g('pc-sl'), pv = g('pc-pv');
@@ -300,7 +319,7 @@ function calcPos(){
     : `<p class="small-note">Completează sold, risc %, SL și valoare pip.</p>`;
 }
 
-/* ---------------- poza pe trade (V2.16) ---------------- */
+/* ---------------- poza pe trade ---------------- */
 let pendingPhoto = '';
 function readPhoto(file, cb){
   const r = new FileReader();
@@ -330,7 +349,7 @@ function showPhoto(id){
   document.body.appendChild(d);
 }
 
-/* ---------------- review zilnic (V2.16) ---------------- */
+/* ---------------- review zilnic ---------------- */
 const DAILY_QS = [
   'Am respectat planul și checklist-ul azi?',
   'Am tranzacționat doar în sesiunea potrivită?',
@@ -998,12 +1017,14 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.16 — calculator poziție + equity + CSV + poze + review zilnic</p>
+    <p class="footer-note">Ciubi · Trading Companion V2.19 — temă light/dark</p>
+    <button id="theme-btn" title="Schimbă tema" onclick="toggleTheme()">🌙</button>
     <button id="undo-btn" title="Anulează ultima modificare (pas cu pas)" onclick="doUndo()">↩ Undo (0)</button>
   `;
   renderTab();
   bindTabEvents();
   updateUndoBtn();
+  applyTheme();
 }
 function tabBtn(id,label){
   return `<button data-tab="${id}" class="${state.tab===id?'active':''}">${label}</button>`;
