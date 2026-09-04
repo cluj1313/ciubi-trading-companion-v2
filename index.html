@@ -97,6 +97,8 @@
   .sess-item.closed{color:var(--text-faint);}
   .news-row{display:flex;justify-content:space-between;gap:8px;font-size:.72rem;padding:4px 0;border-bottom:1px solid var(--border);}
   .news-row:last-child{border-bottom:none;}
+  .ta-check{display:flex;align-items:center;gap:8px;font-size:.75rem;padding:3px 0;color:var(--text);}
+  .ta-check input{width:16px;height:16px;accent-color:var(--orange);}
   #undo-btn{position:fixed;right:12px;bottom:12px;z-index:50;background:var(--card-2);color:var(--text);border:1px solid var(--orange);border-radius:999px;padding:9px 16px;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5);}
 </style>
 </head>
@@ -118,6 +120,8 @@ const DEFAULT_STATE = {
     forex: ['AUDCAD','AUDJPY','AUDNZD','AUDUSD','CADJPY','CHFJPY','EURAUD','EURCAD','EURCHF','EURGBP','EURJPY','EURNZD','EURUSD','GBPAUD','GBPCAD','GBPCHF','GBPJPY','GBPNZD','GBPUSD','NZDJPY','NZDUSD','USDCAD','USDCHF','USDJPY'],
     stocks: ['DXY','ES','NQ','YM','XAGUSD','XAUUSD','BTCUSD','BNBUSD','ETHUSD','SOLUSD']
   },
+  timeAlerts: { asia_open:true, asia_close:true, lon_open:true, lon_close:true, ny_open:true, ny_close:true, c1h:false, c4h:true, cdaily:true, cweekly:false },
+  timeLog: [],
   quickTrade: { pair:'EURUSD', direction:'BUY', htfBias:'BULLISH', date: new Date().toISOString().slice(0,10), setup:'A+', entry:'', sl:'', exit:'', resultR:'', note:'Clean trade', ruleCompliance:'100% — followed rules', session:'London', additionalNote:'' }
 };
 
@@ -161,6 +165,8 @@ function guardState(){
   if(!state.shield) state.shield = JSON.parse(JSON.stringify(DEFAULT_STATE.shield));
   if(!state.instruments || !state.instruments.length) state.instruments = JSON.parse(JSON.stringify(DEFAULT_STATE.instruments));
   if(!state.alertGroups || !state.alertGroups.forex || !state.alertGroups.stocks) state.alertGroups = JSON.parse(JSON.stringify(DEFAULT_STATE.alertGroups));
+  if(!state.timeAlerts) state.timeAlerts = JSON.parse(JSON.stringify(DEFAULT_STATE.timeAlerts));
+  if(!state.timeLog) state.timeLog = [];
 }
 function doUndo(){
   if(!undoStack.length) return;
@@ -241,6 +247,133 @@ const CHECKLIST_ITEMS = [
 ];
 const SETUPS = ['A+','A','B','C'];
 const SESSIONS = ['Asia','London','New York','London/NY overlap'];
+
+/* ---------------- ALERTE DE TIMP (V2.15) ---------------- */
+const TIME_EVENTS = [
+  {id:'asia_open',  label:'Asia se deschide (Tokyo)',        tz:'Asia/Tokyo',         min:9*60},
+  {id:'asia_close', label:'Asia se închide',                 tz:'Asia/Tokyo',         min:15*60},
+  {id:'lon_open',   label:'Londra se deschide',              tz:'Europe/London',      min:8*60},
+  {id:'lon_close',  label:'Londra se închide',               tz:'Europe/London',      min:16*60+30},
+  {id:'ny_open',    label:'New York se deschide',            tz:'America/New_York',   min:8*60},
+  {id:'ny_close',   label:'New York se închide',             tz:'America/New_York',   min:17*60},
+  {id:'c1h',        label:'Lumânare 1H închisă',             tz:'UTC', every:60},
+  {id:'c4h',        label:'Lumânare 4H închisă',             tz:'UTC', every:240},
+  {id:'cdaily',     label:'Lumânare Daily închisă (17:00 NY)', tz:'America/New_York', min:17*60},
+  {id:'cweekly',    label:'Lumânare Weekly închisă (vineri)', tz:'America/New_York',  min:17*60, weekday:5}
+];
+const SESSION_EV_IDS = ['asia_open','asia_close','lon_open','lon_close','ny_open','ny_close'];
+const CANDLE_EV_IDS = ['c1h','c4h','cdaily','cweekly'];
+const WD = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+function wall(tz){
+  try{
+    const parts = new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:false,day:'2-digit',weekday:'short'}).formatToParts(new Date());
+    const g = t=>parts.find(p=>p.type===t).value;
+    return {min:(+g('hour')%24)*60 + (+g('minute')), day:+g('day'), wd:g('weekday')};
+  }catch(e){ return {min:0, day:1, wd:'Mon'}; }
+}
+function crossedTz(prev, now, target){
+  if(prev.day === now.day) return prev.min < target && now.min >= target;
+  return (prev.min < target) || (now.min >= target);
+}
+let taPrev = null;
+function checkTimeAlerts(){
+  const cfg = state.timeAlerts || {};
+  const now = { utcMin: Math.floor(Date.now()/60000) };
+  ['Asia/Tokyo','Europe/London','America/New_York'].forEach(tz=> now[tz]=wall(tz));
+  if(!taPrev){ taPrev = now; renderTimeCard(); return; }
+  const fired = [];
+  TIME_EVENTS.forEach(ev=>{
+    if(!cfg[ev.id]) return;
+    let hit = false;
+    if(ev.every){
+      hit = Math.floor(taPrev.utcMin/ev.every) !== Math.floor(now.utcMin/ev.every);
+    } else if(ev.weekday !== undefined){
+      const w = now[ev.tz];
+      if(WD.indexOf(w.wd) === ev.weekday) hit = crossedTz(taPrev[ev.tz], w, ev.min);
+    } else {
+      hit = crossedTz(taPrev[ev.tz], now[ev.tz], ev.min);
+    }
+    if(hit) fired.push(ev.label);
+  });
+  taPrev = now;
+  if(fired.length){
+    fired.forEach(msg=>{
+      timeNotify(msg);
+      (state.timeLog = state.timeLog||[]).unshift({t:new Date().toISOString(), msg});
+      state.timeLog = state.timeLog.slice(0,10);
+    });
+    saveState();
+  }
+  renderTimeCard();
+}
+function timeNotify(msg){
+  beep();
+  try{ if(navigator.vibrate) navigator.vibrate([150,80,150]); }catch(e){}
+  try{ if('Notification' in window && Notification.permission==='granted') new Notification('⏰ Ciubi', {body: msg}); }catch(e){}
+}
+function setTimeAlert(id, val){
+  if(!state.timeAlerts) state.timeAlerts = {};
+  state.timeAlerts[id] = val;
+  saveState();
+  renderTimeCard();
+}
+function upcomingHTML(){
+  const cfg = state.timeAlerts || {};
+  const base = taPrev ? taPrev.utcMin : Math.floor(Date.now()/60000);
+  const rows = [];
+  TIME_EVENTS.forEach(ev=>{
+    if(!cfg[ev.id]) return;
+    if(ev.every){
+      const next = ev.every - (base % ev.every);
+      rows.push({delta:next, label:ev.label});
+    } else if(ev.weekday !== undefined){
+      const w = wall(ev.tz);
+      const wdI = WD.indexOf(w.wd);
+      let days = (ev.weekday - wdI + 7) % 7;
+      let delta = days*1440 + (ev.min - w.min);
+      if(delta <= 0) delta += 7*1440;
+      rows.push({delta, label:ev.label});
+    } else {
+      const w = wall(ev.tz);
+      let delta = (ev.min - w.min + 1440) % 1440;
+      if(delta === 0) delta = 1440;
+      rows.push({delta, label:ev.label});
+    }
+  });
+  rows.sort((a,b)=>a.delta-b.delta);
+  if(!rows.length) return `<p class="small-note">Nicio alertă de timp activă — bifează mai sus ce vrei să auzi.</p>`;
+  return rows.slice(0,5).map(r=>{
+    const when = new Date(Date.now()+r.delta*60000);
+    return `<div class="news-row"><span>${r.label}</span><b>în ${Math.floor(r.delta/60)}h ${r.delta%60}m (${when.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})})</b></div>`;
+  }).join('');
+}
+function timeLogHTML(){
+  const L = state.timeLog || [];
+  if(!L.length) return `<p class="small-note">Încă nimic — evenimentele anunțate apar aici.</p>`;
+  return L.map(e=>{
+    const d = new Date(e.t);
+    return `<div class="news-row"><span>🔔 ${e.msg}</span><b>${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</b></div>`;
+  }).join('');
+}
+function timeSettingsHTML(){
+  const cfg = state.timeAlerts || {};
+  const row = id=>{
+    const ev = TIME_EVENTS.find(e=>e.id===id);
+    return `<label class="ta-check"><input type="checkbox" ${cfg[id]?'checked':''} onchange="setTimeAlert('${id}', this.checked)"/> ${ev.label}</label>`;
+  };
+  return `
+    <p class="small-note" style="margin:0 0 3px">Sesiuni (deschidere / închidere):</p>
+    <div class="grid2">${SESSION_EV_IDS.map(row).join('')}</div>
+    <p class="small-note" style="margin:6px 0 3px">Închidere lumânări:</p>
+    <div class="grid2">${CANDLE_EV_IDS.map(row).join('')}</div>`;
+}
+function renderTimeCard(){
+  const up = document.getElementById('time-upcoming');
+  if(up) up.innerHTML = upcomingHTML();
+  const lg = document.getElementById('time-log');
+  if(lg) lg.innerHTML = timeLogHTML();
+}
 
 /* ---------------- FEEDS dinamice ---------------- */
 const BINANCE_MAP = {BTCUSD:'BTCUSDT', ETHUSD:'ETHUSDT', SOLUSD:'SOLUSDT', BNBUSD:'BNBUSDT'};
@@ -368,7 +501,6 @@ function resetAlertGroups(){
   saveState();
   renderTab();
 }
-/* V2.14: chips doar cu denumire; prețul live la punctul 3 */
 function refreshAlertForm(){
   const symBox = document.getElementById('al-sym-chips');
   if(symBox){
@@ -721,7 +853,7 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.14 — denumiri curate + preț live la punctul 3</p>
+    <p class="footer-note">Ciubi · Trading Companion V2.15 — alerte de timp (sesiuni + lumânări)</p>
     <button id="undo-btn" title="Anulează ultima modificare (pas cu pas)" onclick="doUndo()">↩ Undo (0)</button>
   `;
   renderTab();
@@ -959,6 +1091,15 @@ function viewExecute(){
       <div class="card-head"><h2>⏰ Sesiuni & știri (ora RO)</h2><span class="pill">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></div>
       <div class="sess" id="sess-box">${sessHTML()}</div>
       <div id="news-box">${newsHTML()}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>⏰ Alerte de timp</h2></div>
+      ${timeSettingsHTML()}
+      <p class="small-note" style="margin:6px 0 3px">Următoarele evenimente (ora ta):</p>
+      <div id="time-upcoming"></div>
+      <p class="small-note" style="margin:6px 0 3px">Istoric anunțuri:</p>
+      <div id="time-log"></div>
     </div>
 
     <div class="card">
@@ -1321,6 +1462,8 @@ function bindTabContentEvents(){
     live('e-quality', v=>state.activeExecution.executionQuality=v);
     live('e-status', v=>state.activeExecution.entryStatus=v);
 
+    renderTimeCard();
+
     const loadBtn = document.getElementById('load-plan-btn');
     if(loadBtn) loadBtn.onclick = ()=>{ state.planActive = true; saveState(); renderTab(); };
     const saveExec = document.getElementById('save-execution-btn');
@@ -1409,9 +1552,11 @@ function valOrEmpty(v){ return v==='-' ? '' : v; }
 loadState();
 loadNews();
 checkAlerts();
+checkTimeAlerts();
 setInterval(tickClocks, 30000);
 setInterval(loadNews, 300000);
 setInterval(checkAlerts, 30000);
+setInterval(checkTimeAlerts, 30000);
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
