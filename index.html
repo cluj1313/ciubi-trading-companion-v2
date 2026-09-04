@@ -311,7 +311,7 @@ let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
 
 const HAS_WS = (typeof window.storage !== 'undefined') && window.storage && (typeof window.storage.get === 'function');
 
-/* ---------------- UNDO V2.4: pas cu pas + contador ---------------- */
+/* ---------------- UNDO V2.5: anuleaza DOAR datele, nu si tab-ul; pas cu pas + contador ---------------- */
 let undoStack = [];
 let snapshot = null;
 let saveTimeout;
@@ -322,25 +322,39 @@ async function writeState(raw){
     else { localStorage.setItem('ciubi_state', raw); }
   }catch(e){ console.error('save failed', e); }
 }
+function dataOnly(){
+  const o = JSON.parse(JSON.stringify(state));
+  delete o.tab;
+  return JSON.stringify(o);
+}
 function saveState(withUndo){
   if(withUndo === undefined) withUndo = true;
-  const cur = JSON.stringify(state);
+  const cur = dataOnly();
   if(withUndo && snapshot && cur !== snapshot){
     undoStack.push(snapshot);
     if(undoStack.length > 30) undoStack.shift();
   }
   snapshot = cur;
   clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(()=>{ writeState(cur); }, 150);
+  const full = JSON.stringify(state);
+  saveTimeout = setTimeout(()=>{ writeState(full); }, 150);
   updateUndoBtn();
 }
 function doUndo(){
   if(!undoStack.length) return;
   const prev = undoStack.pop();
-  state = JSON.parse(prev);
+  const data = JSON.parse(prev);
+  const keepTab = state.tab;
+  state = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_STATE)), data);
+  state.tab = keepTab;
+  if(!state.plan) state.plan = JSON.parse(JSON.stringify(DEFAULT_STATE.plan));
+  if(!state.plan.checklist) state.plan.checklist = Array(10).fill(false);
+  if(!state.trades) state.trades = [];
+  if(!state.shield) state.shield = JSON.parse(JSON.stringify(DEFAULT_STATE.shield));
+  if(!state.instruments || !state.instruments.length) state.instruments = JSON.parse(JSON.stringify(DEFAULT_STATE.instruments));
   snapshot = prev;
   clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(()=>{ writeState(prev); }, 150);
+  saveTimeout = setTimeout(()=>{ writeState(JSON.stringify(state)); }, 150);
   render();
 }
 function updateUndoBtn(){
@@ -367,7 +381,7 @@ async function loadState(){
       if(!state.instruments || !state.instruments.length) state.instruments = JSON.parse(JSON.stringify(DEFAULT_STATE.instruments));
     }
   }catch(e){ /* no saved state yet */ }
-  snapshot = JSON.stringify(state);
+  snapshot = dataOnly();
   render();
 }
 
@@ -528,8 +542,8 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.4 — datele sunt salvate automat</p>
-    <button id="undo-btn" title="Anulează ultima acțiune" onclick="doUndo()">↩ Undo</button>
+    <p class="footer-note">Ciubi · Trading Companion V2.5 — datele sunt salvate automat</p>
+    <button id="undo-btn" title="Anulează ultima modificare de date (nu schimbă tab-ul)" onclick="doUndo()">↩ Undo</button>
   `;
   renderTab();
   bindTabEvents();
@@ -541,7 +555,7 @@ function tabBtn(id,label){
 }
 function bindTabEvents(){
   document.querySelectorAll('nav.tabs button').forEach(b=>{
-    b.onclick = ()=>{ state.tab = b.dataset.tab; saveState(); render(); };
+    b.onclick = ()=>{ state.tab = b.dataset.tab; saveState(false); render(); };
   });
 }
 
@@ -1040,7 +1054,7 @@ function bindTabContentEvents(){
   }
 
   document.querySelectorAll('[data-goto]').forEach(el=>{
-    el.onclick = ()=>{ state.tab = el.dataset.goto; saveState(); render(); };
+    el.onclick = ()=>{ state.tab = el.dataset.goto; saveState(false); render(); };
   });
 
   if(state.tab==='plan'){
@@ -1071,8 +1085,8 @@ function bindTabContentEvents(){
     if(saveBtn) saveBtn.onclick = ()=>{
       readPlanFields();
       state.planActive = true;
-      saveState();
       state.tab = 'execute';
+      saveState();
       render();
     };
   }
@@ -1099,8 +1113,8 @@ function bindTabContentEvents(){
         additionalNote: `Execution quality: ${e.executionQuality}`
       };
       state.trades.push(trade);
-      saveState();
       state.tab='trades';
+      saveState();
       render();
     };
   }
