@@ -311,7 +311,7 @@ let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
 
 const HAS_WS = (typeof window.storage !== 'undefined') && window.storage && (typeof window.storage.get === 'function');
 
-/* ---------------- UNDO (pasi inapoi) ---------------- */
+/* ---------------- UNDO V2.4: pas cu pas + contador ---------------- */
 let undoStack = [];
 let snapshot = null;
 let saveTimeout;
@@ -324,17 +324,15 @@ async function writeState(raw){
 }
 function saveState(withUndo){
   if(withUndo === undefined) withUndo = true;
+  const cur = JSON.stringify(state);
+  if(withUndo && snapshot && cur !== snapshot){
+    undoStack.push(snapshot);
+    if(undoStack.length > 30) undoStack.shift();
+  }
+  snapshot = cur;
   clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(()=>{
-    const cur = JSON.stringify(state);
-    if(withUndo && snapshot && cur !== snapshot){
-      undoStack.push(snapshot);
-      if(undoStack.length > 30) undoStack.shift();
-    }
-    snapshot = cur;
-    writeState(cur);
-    updateUndoBtn();
-  }, 150);
+  saveTimeout = setTimeout(()=>{ writeState(cur); }, 150);
+  updateUndoBtn();
 }
 function doUndo(){
   if(!undoStack.length) return;
@@ -530,8 +528,8 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.3 — datele sunt salvate automat</p>
-    <button id="undo-btn" onclick="doUndo()">↩ Undo</button>
+    <p class="footer-note">Ciubi · Trading Companion V2.4 — datele sunt salvate automat</p>
+    <button id="undo-btn" title="Anulează ultima acțiune" onclick="doUndo()">↩ Undo</button>
   `;
   renderTab();
   bindTabEvents();
