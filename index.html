@@ -1339,7 +1339,7 @@ function viewTrades(){
       </tr></thead><tbody>
         ${state.trades.slice().reverse().map(t=>{
           const R = calcR(t);
-          return `<tr>
+          return `<tr style="${R==null?'':R>0?'background:rgba(62,230,166,.09);':'background:rgba(251,113,133,.09);'}">
             <td>${t.date}</td><td>${t.pair}</td><td>${t.direction}</td><td>${t.htfBias}</td><td>${t.setup}</td>
             <td>${t.entry||'-'}</td><td>${t.sl||'-'}</td><td>${t.exit||'-'}</td>
             <td class="${rClass(R)}">${R===null?'open':fmtR(R)}</td>
