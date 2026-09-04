@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ciubi Trading Companion</title>
+<style>
+  :root{
+    --bg:#070b14;
+    --bg-2:#0b111f;
+    --card:#0f1729;
+    --card-2:#111a2e;
+    --border:rgba(255,255,255,.08);
+    --border-strong:rgba(255,255,255,.16);
+    --text:#e7ecf6;
+    --text-dim:#8291ac;
+    --text-faint:#4d5b76;
+    --orange:#f5a623;
+    --orange-2:#f7931e;
+    --green:#3ee6a6;
+    --red:#fb7185;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:16px;
+    font-size:14px;
+  }
+  .app{max-width:760px;margin:0 auto;padding:10px 10px 4px;}
+
+  header.top{margin-bottom:6px;}
+  h1.logo{
+    font-size:1.05rem;
+    font-weight:800;
+    letter-spacing:.2px;
+    margin:0;
+    display:inline;
+  }
+  h1.logo span{color:var(--orange);}
+  .tagline{
+    color:var(--text-faint);
+    font-size:.6rem;
+    letter-spacing:1.5px;
+    margin:1px 0 8px;
+  }
+
+  nav.tabs{
+    display:flex;
+    gap:5px;
+    overflow-x:auto;
+    padding-bottom:6px;
+    scrollbar-width:none;
+  }
+  nav.tabs::-webkit-scrollbar{display:none;}
+  nav.tabs button{
+    flex:0 0 auto;
+    background:var(--card);
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    padding:6px 12px;
+    border-radius:999px;
+    font-size:.78rem;
+    cursor:pointer;
+    transition:border-color .15s,color .15s;
+  }
+  nav.tabs button.active{
+    border-color:var(--orange);
+    color:var(--orange);
+  }
+  hr.divider{border:none;border-top:1px solid var(--border);margin:2px 0 8px;}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:9px 12px;
+    margin-bottom:6px;
+  }
+  .card-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:2px;
+    gap:8px;
+  }
+  .card-head h2{font-size:.88rem;margin:0;font-weight:700;}
+  .card-sub{color:var(--text-dim);font-size:.72rem;margin:2px 0 8px;line-height:1.35;}
+  .pill{
+    font-size:.62rem;
+    letter-spacing:.5px;
+    color:var(--text-dim);
+    border:1px solid var(--border-strong);
+    padding:3px 9px;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+  .pill.on{color:var(--orange);border-color:var(--orange);}
+  .pill.good{color:var(--green);border-color:var(--green);}
+  .pill.bad{color:var(--red);border-color:var(--red);}
+
+  .field{margin-bottom:5px;display:flex;align-items:center;gap:8px;}
+  .field label{
+    display:block;
+    flex:0 0 84px;
+    font-size:.58rem;
+    letter-spacing:.5px;
+    color:var(--text-faint);
+    margin:0;
+    text-transform:uppercase;
+  }
+  .field input, .field select, .field textarea{
+    flex:1;
+    min-width:0;
+    width:100%;
+    background:var(--bg-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:6px 9px;
+    border-radius:8px;
+    font-size:.78rem;
+    outline:none;
+    font-family:inherit;
+  }
+  .field input::placeholder, .field textarea::placeholder{color:var(--text-faint);}
+  .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--orange);}
+  .field.stacked{display:block;}
+  .field.stacked label{flex:none;display:block;margin-bottom:3px;}
+  .field textarea{resize:vertical;min-height:40px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+  .btn{
+    display:inline-block;
+    background:linear-gradient(180deg,var(--orange),var(--orange-2));
+    color:#1a1200;
+    border:none;
+    padding:10px 16px;
+    border-radius:10px;
+    font-size:.85rem;
+    font-weight:700;
+    cursor:pointer;
+    width:100%;
+    text-align:center;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn.secondary{
+    background:transparent;
+    color:var(--text-dim);
+    border:1px solid var(--border-strong);
+    font-weight:600;
+    width:auto;
+  }
+  .btn.danger{
+    background:transparent;
+    color:var(--red);
+    border:1px solid var(--red);
+    font-weight:600;
+    width:auto;
+    padding:6px 12px;
+    font-size:.72rem;
+  }
+  .btn.small{width:auto;padding:6px 12px;font-size:.72rem;}
+
+  .step{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    margin-bottom:8px;
+    overflow:hidden;
+  }
+  .step.open{border-color:var(--orange);}
+  .step-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:8px 12px;
+    cursor:pointer;
+  }
+  .step-head .num{color:var(--orange);font-weight:800;margin-right:8px;letter-spacing:.5px;font-size:.78rem;}
+  .step-head .title{font-weight:700;font-size:.85rem;}
+  .step-head .left{display:flex;align-items:center;}
+  .step-body{padding:0 14px 14px;}
+  .status{font-size:.62rem;letter-spacing:1px;color:var(--text-faint);}
+  .status.open{color:var(--orange);}
+  .status.done{color:var(--green);}
+
+  .stat{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:6px 12px;
+    margin-bottom:5px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .stat label{font-size:.6rem;letter-spacing:.8px;color:var(--text-faint);margin:0;text-transform:uppercase;}
+  .stat .val{font-size:.95rem;font-weight:800;line-height:1.1;}
+  .val.green{color:var(--green);}
+  .val.red{color:var(--red);}
+  .val.orange{color:var(--orange);}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .grid4{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  @media(min-width:520px){.grid4{grid-template-columns:repeat(4,1fr);}}
+
+  .breakdown-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--bg-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:5px 10px;
+    margin-bottom:4px;
+    font-size:.75rem;
+    gap:6px;
+  }
+  .breakdown-row .name{font-weight:700;letter-spacing:.2px;white-space:nowrap;}
+  .breakdown-row .mid{color:var(--text-dim);font-size:.68rem;text-align:center;}
+  .breakdown-row .r{font-weight:700;white-space:nowrap;}
+
+  table.journal{width:100%;border-collapse:collapse;font-size:.72rem;}
+  table.journal th{
+    text-align:left;
+    color:var(--text-faint);
+    font-weight:600;
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    font-size:.58rem;
+    padding:0 8px 6px 0;
+    border-bottom:1px solid var(--border);
+    white-space:nowrap;
+  }
+  table.journal td{
+    padding:6px 8px 6px 0;
+    border-bottom:1px solid var(--border);
+    white-space:nowrap;
+  }
+  .table-wrap{overflow-x:auto;}
+  .empty{color:var(--text-faint);text-align:center;padding:14px 8px;font-size:.78rem;}
+
+  .checklist-item{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    padding:5px 0;
+    border-bottom:1px solid var(--border);
+    cursor:pointer;
+  }
+  .checklist-item:last-child{border-bottom:none;}
+  .checkbox{
+    width:18px;height:18px;border-radius:6px;
+    border:1.5px solid var(--border-strong);
+    flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;
+    font-size:.68rem;
+    color:transparent;
+  }
+  .checkbox.checked{background:var(--orange);border-color:var(--orange);color:#1a1200;font-weight:800;}
+  .checklist-item span.txt{font-size:.78rem;color:var(--text);}
+  .checklist-item.checked span.txt{color:var(--text-dim);text-decoration:line-through;}
+
+  .footer-note{
+    text-align:center;
+    color:var(--text-faint);
+    font-size:.64rem;
+    margin:10px 0 2px;
+  }
+  .small-note{color:var(--text-faint);font-size:.68rem;line-height:1.4;}
+  select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238291ac' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 10px center;background-size:14px;}
+  .link-btn{background:none;border:none;color:var(--orange);font-size:.72rem;cursor:pointer;padding:0;font-weight:600;}
+  .mini-stat-label{display:block;font-size:.58rem;letter-spacing:.8px;color:var(--text-faint);margin-bottom:3px;text-transform:uppercase;}
+  .mini-stat-val{font-size:.95rem;font-weight:800;}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+/* ---------------- storage helpers (universal: Grok + GitHub + orice browser) ---------------- */
+const DEFAULT_STATE = {
+  tab: 'dashboard',
+  plan: { pair:'', direction:'', htfBias:'', session:'', setup:'', setupNotes:'', riskPercent:'', plannedRR:'', checklist:Array(10).fill(false), decision:'' },
+  planActive: false,
+  activeExecution: { entry:'', sl:'', tp:'', exit:'', executionQuality:'Clean', entryStatus:'Waiting' },
+  trades: [],
+  nextFocus: '',
+  quickTrade: { pair:'EURUSD', direction:'BUY', htfBias:'BULLISH', date: new Date().toISOString().slice(0,10), setup:'A+', entry:'', sl:'', exit:'', resultR:'', note:'Clean trade', ruleCompliance:'100% — followed rules', session:'London', additionalNote:'' }
+};
+
+let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+const HAS_WS = (typeof window.storage !== 'undefined') && window.storage && (typeof window.storage.get === 'function');
+
+async function loadState(){
+  try{
+    let raw = null;
+    if(HAS_WS){
+      const res = await window.storage.get('ciubi_state');
+      if(res && res.value) raw = res.value;
+    } else {
+      raw = localStorage.getItem('ciubi_state');
+    }
+    if(raw){
+      const loaded = JSON.parse(raw);
+      state = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_STATE)), loaded);
+      if(!state.plan) state.plan = JSON.parse(JSON.stringify(DEFAULT_STATE.plan));
+      if(!state.plan.checklist) state.plan.checklist = Array(10).fill(false);
+      if(!state.trades) state.trades = [];
+    }
+  }catch(e){ /* no saved state yet */ }
+  render();
+}
+let saveTimeout;
+function saveState(){
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async ()=>{
+    try{
+      if(HAS_WS){ await window.storage.set('ciubi_state', JSON.stringify(state)); }
+      else { localStorage.setItem('ciubi_state', JSON.stringify(state)); }
+    }catch(e){ console.error('save failed', e); }
+  }, 150);
+}
+
+/* ---------------- backup export / import ---------------- */
+function exportBackup(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ciubi-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+function importBackup(file){
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const loaded = JSON.parse(r.result);
+      if(!loaded || typeof loaded !== 'object') throw new Error('bad file');
+      state = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_STATE)), loaded);
+      if(!state.plan) state.plan = JSON.parse(JSON.stringify(DEFAULT_STATE.plan));
+      if(!state.plan.checklist) state.plan.checklist = Array(10).fill(false);
+      if(!state.trades) state.trades = [];
+      saveState();
+      render();
+      alert('✅ Backup restaurat cu succes!');
+    }catch(e){ alert('⚠️ Fișier de backup invalid.'); }
+  };
+  r.readAsText(file);
+}
+
+/* ---------------- checklist items ---------------- */
+const CHECKLIST_ITEMS = [
+  'Trend aliniat pe EMA 50/200',
+  'External BOS confirmat',
+  'Continuare structura confirmata',
+  'Lichiditate protejata luata (sweep)',
+  'Pret a ajuns in zona de reactie',
+  'Candela de respingere clara',
+  'MSS pe LTF confirmat',
+  'Risc definit (SL logic, nu arbitrar)',
+  'R:R minim 1:2 disponibil',
+  'Sesiunea si stirile sunt ok'
+];
+
+const PAIRS = ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','XAUUSD'];
+const SETUPS = ['A+','A','B','C'];
+const SESSIONS = ['Asia','London','New York','London/NY overlap'];
+
+/* ---------------- R calculation ---------------- */
+function calcR(t){
+  if(t.resultR !== '' && t.resultR !== undefined && t.resultR !== null){
+    const v = parseFloat(t.resultR);
+    if(!isNaN(v)) return v;
+  }
+  const entry = parseFloat(t.entry), sl = parseFloat(t.sl), exit = parseFloat(t.exit);
+  if(isNaN(entry) || isNaN(sl) || isNaN(exit)) return null;
+  const risk = Math.abs(entry - sl);
+  if(risk === 0) return null;
+  const reward = t.direction === 'SELL' ? (entry - exit) : (exit - entry);
+  return reward / risk;
+}
+function fmtR(v){
+  if(v === null || v === undefined || isNaN(v)) return '+0.00R';
+  const sign = v >= 0 ? '+' : '';
+  return sign + v.toFixed(2) + 'R';
+}
+function rClass(v){
+  if(v === null || v === undefined) return '';
+  return v > 0 ? 'green' : (v < 0 ? 'red' : '');
+}
+
+function closedTrades(){
+  return state.trades.map(t=>({...t, R: calcR(t)})).filter(t=> t.R !== null);
+}
+
+/* ---------------- render root ---------------- */
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <header class="top">
+      <h1 class="logo">CIUBI <span>TRADING COMPANION</span></h1>
+      <p class="tagline">PLAN &nbsp;·&nbsp; EXECUTE &nbsp;·&nbsp; TRADE &nbsp;·&nbsp; REVIEW &nbsp;·&nbsp; IMPROVE</p>
+    </header>
+    <nav class="tabs">
+      ${tabBtn('dashboard','Dashboard')}
+      ${tabBtn('plan','Plan')}
+      ${tabBtn('execute','Execute')}
+      ${tabBtn('trades','Trades')}
+      ${tabBtn('review','Review')}
+      ${tabBtn('improve','Improve')}
+    </nav>
+    <hr class="divider"/>
+    <div id="tab-content"></div>
+    <p class="footer-note">Ciubi · Trading Companion V2.0 — datele sunt salvate automat</p>
+  `;
+  renderTab();
+  bindTabEvents();
+}
+
+function tabBtn(id,label){
+  return `<button data-tab="${id}" class="${state.tab===id?'active':''}">${label}</button>`;
+}
+function bindTabEvents(){
+  document.querySelectorAll('nav.tabs button').forEach(b=>{
+    b.onclick = ()=>{ state.tab = b.dataset.tab; saveState(); render(); };
+  });
+}
+
+function renderTab(){
+  const c = document.getElementById('tab-content');
+  if(state.tab==='dashboard') c.innerHTML = viewDashboard();
+  if(state.tab==='plan') c.innerHTML = viewPlan();
+  if(state.tab==='execute') c.innerHTML = viewExecute();
+  if(state.tab==='trades') c.innerHTML = viewTrades();
+  if(state.tab==='review') c.innerHTML = viewReview();
+  if(state.tab==='improve') c.innerHTML = viewImprove();
+  bindTabContentEvents();
+}
+
+/* =====================================================
+   DASHBOARD
+===================================================== */
+function viewDashboard(){
+  const closed = closedTrades();
+  const wins = closed.filter(t=>t.R>0).length;
+  const total = closed.length;
+  const winRate = total ? (wins/total*100) : 0;
+  const totalR = closed.reduce((s,t)=>s+t.R,0);
+
+  const byPair = {};
+  closed.forEach(t=>{
+    byPair[t.pair] = byPair[t.pair] || {trades:0,wins:0,R:0};
+    byPair[t.pair].trades++;
+    if(t.R>0) byPair[t.pair].wins++;
+    byPair[t.pair].R += t.R;
+  });
+  const pairRanking = Object.entries(byPair).sort((a,b)=>b[1].R-a[1].R);
+  const bestPair = pairRanking.length ? pairRanking[0][0] : '-';
+
+  const bySetup = {};
+  closed.forEach(t=>{
+    bySetup[t.setup] = bySetup[t.setup] || {trades:0,wins:0,R:0};
+    bySetup[t.setup].trades++;
+    if(t.R>0) bySetup[t.setup].wins++;
+    bySetup[t.setup].R += t.R;
+  });
+
+  return `
+    <div class="stat"><label>Total trades</label><div class="val">${total}</div></div>
+    <div class="stat"><label>Win rate</label><div class="val">${winRate.toFixed(1)}%</div></div>
+    <div class="stat"><label>Total R</label><div class="val ${rClass(totalR)}">${fmtR(totalR)}</div></div>
+    <div class="stat"><label>Best pair</label><div class="val orange">${bestPair}</div></div>
+
+    <div class="card">
+      <div class="card-head"><h2>💾 Backup</h2></div>
+      <p class="card-sub">Salvează-ți jurnalul ca fișier sau restaurează-l pe alt device.</p>
+      <div class="grid2">
+        <button class="btn small" id="export-btn">⬇ Descarcă salvarea</button>
+        <button class="btn small secondary" id="import-btn">⬆ Restaurează</button>
+      </div>
+      <input type="file" id="import-file" accept=".json,application/json" style="display:none"/>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Pair performance</h2><button class="btn small secondary" data-goto="trades">+ Trade</button></div>
+      ${pairRanking.length===0 ? `<div class="empty">Fara trade-uri inca.</div>` : `
+      <div class="table-wrap"><table class="journal"><thead><tr><th>Rank</th><th>Pair</th><th>Trades</th><th>Win%</th><th>R</th></tr></thead><tbody>
+        ${pairRanking.map((p,i)=>`<tr><td>#${i+1}</td><td>${p[0]}</td><td>${p[1].trades}</td><td>${(p[1].wins/p[1].trades*100).toFixed(0)}%</td><td class="${rClass(p[1].R)}">${fmtR(p[1].R)}</td></tr>`).join('')}
+      </tbody></table></div>`}
+    </div>
+
+    <div class="card">
+      <h2>Setup performance</h2>
+      ${Object.keys(bySetup).length===0 ? `<div class="empty">Fara date de setup inca.</div>` : `
+      ${Object.entries(bySetup).sort((a,b)=>b[1].R-a[1].R).map(([name,d])=>`
+        <div class="breakdown-row">
+          <span class="name">${name}</span>
+          <span class="mid">${d.trades} trade · ${(d.wins/d.trades*100).toFixed(0)}% win</span>
+          <span class="r ${rClass(d.R)}">${fmtR(d.R)}</span>
+        </div>`).join('')}`}
+    </div>
+  `;
+}
+
+/* =====================================================
+   PLAN
+===================================================== */
+let planOpenStep = 1;
+function stepDoneStatus(n){
+  const p = state.plan;
+  if(n===1) return p.pair && p.direction && p.htfBias && p.session;
+  if(n===2) return p.setup;
+  if(n===3) return p.riskPercent && p.plannedRR;
+  if(n===4) return p.checklist.filter(Boolean).length === CHECKLIST_ITEMS.length;
+  if(n===5) return p.decision;
+  return false;
+}
+function viewPlan(){
+  const p = state.plan;
+  const decisionPill = p.decision ? (p.decision==='NO TRADE' ? 'NO TRADE' : p.decision) : 'NO TRADE';
+  return `
+    <div class="card">
+      <div class="card-head"><h2>Pre-Trade Plan</h2><span class="pill ${p.decision && p.decision!=='NO TRADE' ? 'on':''}">${decisionPill}</span></div>
+      <p class="card-sub">Construieste ideea intai. Extinde doar ce ai nevoie.</p>
+    </div>
+
+    ${planStep(1,'Market', `
+      <div class="field"><label>Pair</label>
+        <select id="p-pair">${['-',...PAIRS].map(v=>`<option ${p.pair===v?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Direction</label>
+        <select id="p-direction">${['-','BUY','SELL'].map(v=>`<option ${p.direction===v?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>HTF Bias</label>
+        <select id="p-htf">${['-','BULLISH','BEARISH','NEUTRAL'].map(v=>`<option ${p.htfBias===v?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Session</label>
+        <select id="p-session">${['-',...SESSIONS].map(v=>`<option ${p.session===v?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <button class="btn" data-next="2">NEXT -&gt; SETUP</button>
+    `)}
+
+    ${planStep(2,'Setup', `
+      <div class="field"><label>Setup</label>
+        <select id="p-setup">${['-',...SETUPS].map(v=>`<option ${p.setup===v?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Setup notes</label>
+        <textarea id="p-setupnotes" placeholder="Ce anume confirma acest setup" style="flex:1;">${p.setupNotes||''}</textarea>
+      </div>
+      <button class="btn" data-next="3">NEXT -&gt; RISK</button>
+    `)}
+
+    ${planStep(3,'Risk', `
+      <div class="row2">
+        <div class="field"><label>Risc planificat (%)</label>
+          <input id="p-risk" type="number" step="0.1" placeholder="ex. 1" value="${p.riskPercent||''}"/>
+        </div>
+        <div class="field"><label>R:R planificat</label>
+          <input id="p-rr" type="text" placeholder="ex. 1:2.5" value="${p.plannedRR||''}"/>
+        </div>
+      </div>
+      <button class="btn" data-next="4">NEXT -&gt; CHECK</button>
+    `)}
+
+    ${planStep(4,'Check', `
+      ${CHECKLIST_ITEMS.map((txt,i)=>`
+        <div class="checklist-item ${p.checklist[i]?'checked':''}" data-check="${i}">
+          <div class="checkbox ${p.checklist[i]?'checked':''}">${p.checklist[i]?'✓':''}</div>
+          <span class="txt">${txt}</span>
+        </div>
+      `).join('')}
+      <div style="height:16px"></div>
+      <button class="btn" data-next="5">NEXT -&gt; DECISION</button>
+    `, `${p.checklist.filter(Boolean).length}/${CHECKLIST_ITEMS.length}`)}
+
+    ${planStep(5,'Decision', `
+      <div class="field"><label>Decizie</label>
+        <select id="p-decision">${['NO TRADE','LONG','SHORT'].map(v=>`<option ${p.decision===v?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <button class="btn" id="save-plan-btn">Save plan</button>
+    `)}
+  `;
+}
+function planStep(n,title,body,rightLabel){
+  const isOpen = planOpenStep === n;
+  const done = stepDoneStatus(n);
+  const statusText = rightLabel ? rightLabel : (isOpen?'OPEN':(done?'DONE':'LOCKED'));
+  const statusClass = isOpen ? 'open' : (done ? 'done' : '');
+  return `
+    <div class="step ${isOpen?'open':''}">
+      <div class="step-head" data-stepheader="${n}">
+        <div class="left"><span class="num">${String(n).padStart(2,'0')}</span><span class="title">${title}</span></div>
+        <span class="status ${statusClass}">${statusText}</span>
+      </div>
+      ${isOpen ? `<div class="step-body">${body}</div>` : ''}
+    </div>
+  `;
+}
+
+/* =====================================================
+   EXECUTE
+===================================================== */
+function viewExecute(){
+  const p = state.plan;
+  const e = state.activeExecution;
+  const hasPlan = state.planActive && p.pair;
+  return `
+    <div class="card">
+      <div class="card-head"><h2>Execute trade</h2><span class="pill ${hasPlan?'on':''}">${hasPlan?'PLAN LOADED':'NO ACTIVE TRADE'}</span></div>
+      <p class="card-sub">${hasPlan ? `${p.pair} · ${p.direction} · ${p.htfBias}` : 'Porneste din Plan, salveaza un plan, apoi incarca-l in Execute.'}</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Planned setup</h2><button class="btn small secondary" id="load-plan-btn">Load active plan</button></div>
+      <div class="stat row"><label>Pair</label><div class="val">${p.pair||'-'}</div></div>
+      <div class="stat row"><label>Direction</label><div class="val">${p.direction||'-'}</div></div>
+      <div class="stat row"><label>HTF Bias</label><div class="val">${p.htfBias||'-'}</div></div>
+      <div class="stat row"><label>Setup</label><div class="val">${p.setup||'-'}</div></div>
+      <div class="stat row"><label>Planned risk</label><div class="val">${p.riskPercent?p.riskPercent+'%':'-'}</div></div>
+      <div class="stat row"><label>Planned R:R</label><div class="val">${p.plannedRR||'-'}</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Actual execution</h2>
+      <div class="field"><label>Entry price</label><input id="e-entry" type="number" step="any" value="${e.entry}"/></div>
+      <div class="field"><label>Stop loss</label><input id="e-sl" type="number" step="any" value="${e.sl}"/></div>
+      <div class="field"><label>Take profit</label><input id="e-tp" type="number" step="any" value="${e.tp}"/></div>
+      <div class="field"><label>Exit price</label><input id="e-exit" type="number" step="any" placeholder="Leave empty while open" value="${e.exit}"/></div>
+      <div class="field"><label>Execution quality</label>
+        <select id="e-quality">${['Clean','Chased entry','Late entry','Early entry','Hesitated'].map(v=>`<option ${e.executionQuality===v?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Entry status</label>
+        <select id="e-status">${['Waiting','Filled','Cancelled','Missed'].map(v=>`<option ${e.entryStatus===v?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <button class="btn" id="save-execution-btn">Save execution</button>
+    </div>
+  `;
+}
+
+/* =====================================================
+   TRADES
+===================================================== */
+function viewTrades(){
+  const q = state.quickTrade;
+  return `
+    <div class="card">
+      <div class="card-head"><h2>Add paper trade</h2><button class="btn small secondary" id="use-plan-btn">Use active plan</button></div>
+      <div class="field"><label>Pair</label><select id="q-pair">${PAIRS.map(v=>`<option ${q.pair===v?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><label>Direction</label><select id="q-direction">${['BUY','SELL'].map(v=>`<option ${q.direction===v?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><label>HTF Bias</label><select id="q-htf">${['BULLISH','BEARISH','NEUTRAL'].map(v=>`<option ${q.htfBias===v?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><label>Date</label><input id="q-date" type="date" value="${q.date}"/></div>
+      <div class="field"><label>Setup</label><select id="q-setup">${SETUPS.map(v=>`<option ${q.setup===v?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><label>Entry</label><input id="q-entry" type="number" step="any" value="${q.entry}"/></div>
+      <div class="field"><label>Stop loss</label><input id="q-sl" type="number" step="any" value="${q.sl}"/></div>
+      <div class="field"><label>Exit</label><input id="q-exit" type="number" step="any" value="${q.exit}"/></div>
+      <div class="field"><label>Result R (opt.)</label><input id="q-resultr" type="number" step="any" placeholder="Auto from prices" value="${q.resultR}"/></div>
+      <div class="field"><label>Trade note</label>
+        <select id="q-note">${['Clean trade','Revenge trade','FOMO entry','Overleveraged','Moved stop','Cut winner early','Ignored plan','Perfect execution'].map(v=>`<option ${q.note===v?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Rule compliance</label>
+        <select id="q-compliance">${['100% — followed rules','70-89% — minor deviation','50-69% — significant deviation','0-49% — ignored plan'].map(v=>`<option ${q.ruleCompliance===v?'selected':''}>${v}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Session</label><select id="q-session">${SESSIONS.map(v=>`<option ${q.session===v?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><label>Add. note</label><input id="q-addnote" type="text" placeholder="Anything important about this trade" value="${q.additionalNote}"/></div>
+      <button class="btn" id="add-trade-btn">Add paper trade</button>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Trade journal</h2>${state.trades.length? `<button class="btn danger" id="delete-all-btn">Delete all</button>`:''}</div>
+      ${state.trades.length===0 ? `<div class="empty">Fara trade-uri in jurnal.</div>` : `
+      <div class="table-wrap"><table class="journal"><thead><tr>
+        <th>Date</th><th>Pair</th><th>Direction</th><th>HTF</th><th>Setup</th><th>Entry</th><th>SL</th><th>Exit</th><th>R</th><th></th>
+      </tr></thead><tbody>
+        ${state.trades.slice().reverse().map(t=>{
+          const R = calcR(t);
+          return `<tr>
+            <td>${t.date}</td><td>${t.pair}</td><td>${t.direction}</td><td>${t.htfBias}</td><td>${t.setup}</td>
+            <td>${t.entry||'-'}</td><td>${t.sl||'-'}</td><td>${t.exit||'-'}</td>
+            <td class="${rClass(R)}">${R===null?'open':fmtR(R)}</td>
+            <td><button class="link-btn" data-del="${t.id}">Delete</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody></table></div>`}
+    </div>
+  `;
+}
+
+/* =====================================================
+   REVIEW
+===================================================== */
+function viewReview(){
+  const closed = closedTrades();
+  const wins = closed.filter(t=>t.R>0).length;
+  const losses = closed.filter(t=>t.R<0).length;
+  const total = closed.length;
+  const winRate = total ? (wins/total*100) : 0;
+  const totalR = closed.reduce((s,t)=>s+t.R,0);
+
+  function group(field, values){
+    return values.map(v=>{
+      const rows = closed.filter(t=>t[field]===v);
+      const w = rows.filter(t=>t.R>0).length;
+      const r = rows.reduce((s,t)=>s+t.R,0);
+      return {name:v, trades:rows.length, wins:w, R:r};
+    });
+  }
+  const dir = group('direction',['BUY','SELL']);
+  const htf = group('htfBias',['BULLISH','BEARISH','NEUTRAL']);
+
+  const pairHtf = {};
+  closed.forEach(t=>{
+    const key = `${t.pair} · ${t.htfBias}`;
+    pairHtf[key] = pairHtf[key] || {trades:0,wins:0,R:0};
+    pairHtf[key].trades++;
+    if(t.R>0) pairHtf[key].wins++;
+    pairHtf[key].R += t.R;
+  });
+
+  const avgWin = wins ? closed.filter(t=>t.R>0).reduce((s,t)=>s+t.R,0)/wins : 0;
+  const avgLoss = losses ? closed.filter(t=>t.R<0).reduce((s,t)=>s+t.R,0)/losses : 0;
+  const grossWin = closed.filter(t=>t.R>0).reduce((s,t)=>s+t.R,0);
+  const grossLoss = Math.abs(closed.filter(t=>t.R<0).reduce((s,t)=>s+t.R,0));
+  const profitFactor = grossLoss ? (grossWin/grossLoss).toFixed(2) : '-';
+  const expectancy = total ? totalR/total : 0;
+
+  let running = 0, peak = 0, maxDD = 0;
+  let curStreakW = 0, curStreakL = 0, bestStreakW = 0, worstStreakL = 0;
+  closed.forEach(t=>{
+    running += t.R; peak = Math.max(peak, running);
+    maxDD = Math.min(maxDD, running - peak);
+    if(t.R>0){ curStreakW++; curStreakL=0; bestStreakW=Math.max(bestStreakW,curStreakW); }
+    else if(t.R<0){ curStreakL++; curStreakW=0; worstStreakL=Math.max(worstStreakL,curStreakL); }
+    else { curStreakW=0; curStreakL=0; }
+  });
+  const currentDD = running - peak;
+
+  function complianceBucket(t){
+    const c = t.ruleCompliance || '';
+    if(c.startsWith('100')) return '90-100%';
+    if(c.startsWith('70')) return '70-89%';
+    if(c.startsWith('50')) return '50-69%';
+    return '0-49%';
+  }
+  const buckets = ['90-100%','70-89%','50-69%','0-49%'].map(b=>{
+    const rows = closed.filter(t=>complianceBucket(t)===b);
+    const w = rows.filter(t=>t.R>0).length;
+    const r = rows.reduce((s,t)=>s+t.R,0);
+    return {name:b, trades:rows.length, wins:w, R:r};
+  });
+
+  const bySession = {};
+  closed.forEach(t=>{
+    bySession[t.session] = bySession[t.session] || {trades:0,wins:0,R:0};
+    bySession[t.session].trades++;
+    if(t.R>0) bySession[t.session].wins++;
+    bySession[t.session].R += t.R;
+  });
+
+  return `
+    <div class="stat"><label>Total R</label><div class="val ${rClass(totalR)}">${fmtR(totalR)}</div></div>
+    <div class="stat"><label>Wins</label><div class="val green">${wins}</div></div>
+    <div class="stat"><label>Losses</label><div class="val red">${losses}</div></div>
+    <div class="stat"><label>Win rate</label><div class="val">${winRate.toFixed(1)}%</div></div>
+
+    <div class="card">
+      <h2>Direction</h2>
+      ${dir.map(d=>`<div class="breakdown-row"><span class="name">${d.name}</span><span class="mid">${d.wins}W / ${d.trades-d.wins}L &nbsp; ${d.trades?((d.wins/d.trades)*100).toFixed(1):'0.0'}%</span><span class="r ${rClass(d.R)}">${fmtR(d.R)}</span></div>`).join('')}
+    </div>
+
+    <div class="card">
+      <h2>HTF Bias</h2>
+      ${htf.map(d=>`<div class="breakdown-row"><span class="name">${d.name==='BULLISH'||d.name==='BEARISH'?('WITH/'+d.name):d.name}</span><span class="mid">${d.wins}W / ${d.trades-d.wins}L &nbsp; ${d.trades?((d.wins/d.trades)*100).toFixed(1):'0.0'}%</span><span class="r ${rClass(d.R)}">${fmtR(d.R)}</span></div>`).join('')}
+    </div>
+
+    <div class="card">
+      <h2>Pair + HTF breakdown</h2>
+      ${Object.keys(pairHtf).length===0 ? `<div class="empty">Fara trade-uri inca.</div>` : Object.entries(pairHtf).map(([name,d])=>`
+        <div class="breakdown-row"><span class="name">${name}</span><span class="mid">${d.trades} trade</span><span class="r ${rClass(d.R)}">${fmtR(d.R)}</span></div>
+      `).join('')}
+    </div>
+
+    <div class="card">
+      <h2>Expectancy &amp; Risk</h2>
+      <div class="grid4">
+        <div><span class="mini-stat-label">Expectancy/trade</span><div class="mini-stat-val ${rClass(expectancy)}">${fmtR(expectancy)}</div></div>
+        <div><span class="mini-stat-label">Avg win</span><div class="mini-stat-val green">${fmtR(avgWin)}</div></div>
+        <div><span class="mini-stat-label">Avg loss</span><div class="mini-stat-val red">${fmtR(avgLoss)}</div></div>
+        <div><span class="mini-stat-label">Profit factor</span><div class="mini-stat-val">${profitFactor}</div></div>
+      </div>
+      <p class="small-note" style="margin-top:8px;">Expectanta pozitiva inseamna ca trade-ul mediu istoric a fost profitabil in termeni de R.</p>
+      <hr class="divider"/>
+      <div class="grid4">
+        <div><span class="mini-stat-label">Max drawdown</span><div class="mini-stat-val red">${fmtR(maxDD)}</div></div>
+        <div><span class="mini-stat-label">Current DD</span><div class="mini-stat-val green">${fmtR(currentDD)}</div></div>
+        <div><span class="mini-stat-label">Best win streak</span><div class="mini-stat-val green">${bestStreakW}</div></div>
+        <div><span class="mini-stat-label">Worst loss streak</span><div class="mini-stat-val red">${worstStreakL}</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Rule Compliance</h2>
+      ${buckets.map(b=>`<div class="breakdown-row"><span class="name">${b.name}</span><span class="mid">${b.trades} trades &nbsp; ${b.trades?((b.wins/b.trades)*100).toFixed(1):'0.0'}% win</span><span class="r ${rClass(b.R)}">${fmtR(b.R)}</span></div>`).join('')}
+      <p class="small-note" style="margin-top:10px;">Arata daca executia disciplinata este asociata cu rezultate mai bune.</p>
+    </div>
+
+    <div class="card">
+      <h2>Session Performance</h2>
+      ${Object.keys(bySession).length===0 ? `<div class="empty">Adauga trade-uri pentru a vedea performanta pe sesiune.</div>` : Object.entries(bySession).map(([name,d])=>`
+        <div class="breakdown-row"><span class="name">${name}</span><span class="mid">${d.trades} trade · ${(d.wins/d.trades*100).toFixed(0)}% win</span><span class="r ${rClass(d.R)}">${fmtR(d.R)}</span></div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/* =====================================================
+   IMPROVE
+===================================================== */
+function viewImprove(){
+  const closed = closedTrades();
+  const noteCounts = {};
+  closed.forEach(t=>{
+    if(!t.note) return;
+    noteCounts[t.note] = (noteCounts[t.note]||0)+1;
+  });
+  const patterns = Object.entries(noteCounts).sort((a,b)=>b[1]-a[1]).filter(p=>p[1]>=2);
+
+  const bySetup = {};
+  closed.forEach(t=>{
+    bySetup[t.setup] = bySetup[t.setup] || {trades:0,wins:0,R:0};
+    bySetup[t.setup].trades++;
+    if(t.R>0) bySetup[t.setup].wins++;
+    bySetup[t.setup].R += t.R;
+  });
+
+  return `
+    <div class="card">
+      <h2>Improve</h2>
+      <p class="card-sub">Foloseste jurnalul pentru a identifica tipare de comportament repetate. Datele raman pe acest dispozitiv.</p>
+    </div>
+
+    <div class="card">
+      <h2>Behavior patterns</h2>
+      ${patterns.length===0 ? `<div class="empty">Adauga trade-uri pentru a descoperi tipare de comportament.</div>` : patterns.map(p=>`
+        <div class="breakdown-row"><span class="name">${p[0]}</span><span class="mid">${p[1]} aparitii</span></div>
+      `).join('')}
+    </div>
+
+    <div class="card">
+      <h2>Setup performance</h2>
+      ${Object.keys(bySetup).length===0 ? `<div class="empty">Fara date de setup inca.</div>` : Object.entries(bySetup).map(([name,d])=>`
+        <div class="breakdown-row"><span class="name">${name}</span><span class="mid">${d.trades} trade · ${(d.wins/d.trades*100).toFixed(0)}% win</span><span class="r ${rClass(d.R)}">${fmtR(d.R)}</span></div>
+      `).join('')}
+    </div>
+
+    <div class="card">
+      <h2>Next focus</h2>
+      <div class="field stacked"><label>Next focus</label><textarea id="next-focus" placeholder="Care este singurul comportament pe care vrei sa-l imbunatatesti acum?">${state.nextFocus||''}</textarea></div>
+      <button class="btn" id="save-focus-btn">Save focus</button>
+    </div>
+  `;
+}
+
+/* =====================================================
+   EVENT BINDING per tab
+===================================================== */
+function bindTabContentEvents(){
+  if(state.tab==='dashboard'){
+    const eb = document.getElementById('export-btn');
+    if(eb) eb.onclick = exportBackup;
+    const ib = document.getElementById('import-btn');
+    const fi = document.getElementById('import-file');
+    if(ib && fi){
+      ib.onclick = ()=>fi.click();
+      fi.onchange = ()=>{ if(fi.files && fi.files[0]) importBackup(fi.files[0]); fi.value=''; };
+    }
+  }
+
+  document.querySelectorAll('[data-goto]').forEach(el=>{
+    el.onclick = ()=>{ state.tab = el.dataset.goto; saveState(); render(); };
+  });
+
+  if(state.tab==='plan'){
+    document.querySelectorAll('[data-stepheader]').forEach(el=>{
+      el.onclick = ()=>{
+        const n = parseInt(el.dataset.stepheader);
+        planOpenStep = planOpenStep === n ? 0 : n;
+        renderTab();
+      };
+    });
+    document.querySelectorAll('[data-next]').forEach(el=>{
+      el.onclick = ()=>{
+        readPlanFields();
+        planOpenStep = parseInt(el.dataset.next);
+        saveState();
+        renderTab();
+      };
+    });
+    document.querySelectorAll('[data-check]').forEach(el=>{
+      el.onclick = ()=>{
+        const i = parseInt(el.dataset.check);
+        state.plan.checklist[i] = !state.plan.checklist[i];
+        saveState();
+        renderTab();
+      };
+    });
+    const saveBtn = document.getElementById('save-plan-btn');
+    if(saveBtn) saveBtn.onclick = ()=>{
+      readPlanFields();
+      state.planActive = true;
+      saveState();
+      state.tab = 'execute';
+      render();
+    };
+  }
+
+  if(state.tab==='execute'){
+    const loadBtn = document.getElementById('load-plan-btn');
+    if(loadBtn) loadBtn.onclick = ()=>{ state.planActive = true; saveState(); renderTab(); };
+    const saveExec = document.getElementById('save-execution-btn');
+    if(saveExec) saveExec.onclick = ()=>{
+      const e = state.activeExecution;
+      e.entry = document.getElementById('e-entry').value;
+      e.sl = document.getElementById('e-sl').value;
+      e.tp = document.getElementById('e-tp').value;
+      e.exit = document.getElementById('e-exit').value;
+      e.executionQuality = document.getElementById('e-quality').value;
+      e.entryStatus = document.getElementById('e-status').value;
+      const p = state.plan;
+      const trade = {
+        id: Date.now(),
+        date: new Date().toISOString().slice(0,10),
+        pair: p.pair||'-', direction: p.direction||'-', htfBias: p.htfBias||'-',
+        setup: p.setup||'-', entry: e.entry, sl: e.sl, exit: e.exit, resultR:'',
+        note: e.entryStatus, ruleCompliance:'100% — followed rules', session: p.session||'-',
+        additionalNote: `Execution quality: ${e.executionQuality}`
+      };
+      state.trades.push(trade);
+      saveState();
+      state.tab='trades';
+      render();
+    };
+  }
+
+  if(state.tab==='trades'){
+    const useBtn = document.getElementById('use-plan-btn');
+    if(useBtn) useBtn.onclick = ()=>{
+      const p = state.plan;
+      const q = state.quickTrade;
+      if(p.pair) q.pair = p.pair;
+      if(p.direction) q.direction = p.direction;
+      if(p.htfBias) q.htfBias = p.htfBias;
+      if(p.setup) q.setup = p.setup;
+      if(p.session) q.session = p.session;
+      saveState();
+      renderTab();
+    };
+    const addBtn = document.getElementById('add-trade-btn');
+    if(addBtn) addBtn.onclick = ()=>{
+      const q = state.quickTrade;
+      q.pair = document.getElementById('q-pair').value;
+      q.direction = document.getElementById('q-direction').value;
+      q.htfBias = document.getElementById('q-htf').value;
+      q.date = document.getElementById('q-date').value;
+      q.setup = document.getElementById('q-setup').value;
+      q.entry = document.getElementById('q-entry').value;
+      q.sl = document.getElementById('q-sl').value;
+      q.exit = document.getElementById('q-exit').value;
+      q.resultR = document.getElementById('q-resultr').value;
+      q.note = document.getElementById('q-note').value;
+      q.ruleCompliance = document.getElementById('q-compliance').value;
+      q.session = document.getElementById('q-session').value;
+      q.additionalNote = document.getElementById('q-addnote').value;
+      state.trades.push(Object.assign({id:Date.now()}, q));
+      saveState();
+      renderTab();
+    };
+    document.querySelectorAll('[data-del]').forEach(el=>{
+      el.onclick = ()=>{
+        const id = parseInt(el.dataset.del);
+        state.trades = state.trades.filter(t=>t.id!==id);
+        saveState();
+        renderTab();
+      };
+    });
+    const delAll = document.getElementById('delete-all-btn');
+    if(delAll) delAll.onclick = ()=>{
+      if(confirm('Stergi toate trade-urile din jurnal?')){
+        state.trades = [];
+        saveState();
+        renderTab();
+      }
+    };
+  }
+
+  if(state.tab==='improve'){
+    const saveFocus = document.getElementById('save-focus-btn');
+    if(saveFocus) saveFocus.onclick = ()=>{
+      state.nextFocus = document.getElementById('next-focus').value;
+      saveState();
+      renderTab();
+    };
+  }
+}
+
+function readPlanFields(){
+  const p = state.plan;
+  if(document.getElementById('p-pair')) p.pair = valOrEmpty(document.getElementById('p-pair').value);
+  if(document.getElementById('p-direction')) p.direction = valOrEmpty(document.getElementById('p-direction').value);
+  if(document.getElementById('p-htf')) p.htfBias = valOrEmpty(document.getElementById('p-htf').value);
+  if(document.getElementById('p-session')) p.session = valOrEmpty(document.getElementById('p-session').value);
+  if(document.getElementById('p-setup')) p.setup = valOrEmpty(document.getElementById('p-setup').value);
+  if(document.getElementById('p-setupnotes')) p.setupNotes = document.getElementById('p-setupnotes').value;
+  if(document.getElementById('p-risk')) p.riskPercent = document.getElementById('p-risk').value;
+  if(document.getElementById('p-rr')) p.plannedRR = document.getElementById('p-rr').value;
+  if(document.getElementById('p-decision')) p.decision = document.getElementById('p-decision').value;
+}
+function valOrEmpty(v){ return v==='-' ? '' : v; }
+
+loadState();
+</script>
+</body>
+</html>
