@@ -237,7 +237,7 @@ const CHECKLIST_ITEMS = [
 const SETUPS = ['A+','A','B','C'];
 const SESSIONS = ['Asia','London','New York','London/NY overlap'];
 
-/* ---------------- PREȚURI LIVE & ALERTE (V2.9) ---------------- */
+/* ---------------- PREȚURI LIVE & ALERTE (V2.10: chips + editare + ștergere) ---------------- */
 const FEEDS = {
   'BTCUSD': {type:'binance', sym:'BTCUSDT'},
   'ETHUSD': {type:'binance', sym:'ETHUSDT'},
@@ -247,6 +247,10 @@ const FEEDS = {
   'XAGUSD': {type:'gold', sym:'XAG'}
 };
 let lastPrices = {};
+let alSymbol = 'XAUUSD';
+let alDir = 'above';
+let editingAlertId = null;
+
 async function fetchPrice(symbol){
   const f = FEEDS[symbol];
   if(!f) return null;
@@ -267,40 +271,90 @@ async function fetchPrice(symbol){
 function fmtPrice(p){
   return p>=1000 ? p.toLocaleString('en-US',{maximumFractionDigits:1}) : p.toFixed(p>=100?2:4);
 }
+function setAlSymbol(s){ alSymbol = s; refreshAlertForm(); }
+function setAlDir(d){ alDir = d; refreshAlertForm(); }
+function refreshAlertForm(){
+  const symBox = document.getElementById('al-sym-chips');
+  if(symBox) symBox.innerHTML = Object.keys(FEEDS).map(s=>{
+    const on = s===alSymbol;
+    return `<span class="tag" style="cursor:pointer;${on?'border-color:var(--orange);color:var(--orange);':''}" onclick="setAlSymbol('${s}')">${s}</span>`;
+  }).join('');
+  const dirBox = document.getElementById('al-dir-chips');
+  if(dirBox) dirBox.innerHTML = ['above','below'].map(d=>{
+    const on = d===alDir;
+    return `<span class="tag" style="cursor:pointer;${on?'border-color:var(--orange);color:var(--orange);':''}" onclick="setAlDir('${d}')">${d==='above'?'PESTE':'SUB'}</span>`;
+  }).join('');
+  const btn = document.getElementById('al-save-btn');
+  if(btn) btn.textContent = editingAlertId ? '💾 Salvează modificarea' : '+ Adaugă alerta';
+}
+function submitAlert(){
+  const raw = (document.getElementById('al-price').value||'').replace(',','.');
+  const price = parseFloat(raw);
+  if(isNaN(price) || price<=0){ alert('Completează un preț valid.'); return; }
+  if(!state.alerts) state.alerts = [];
+  if(editingAlertId){
+    const a = state.alerts.find(x=>x.id===editingAlertId);
+    if(a){ a.symbol = alSymbol; a.dir = alDir; a.price = price; a.triggered = false; }
+    editingAlertId = null;
+  } else {
+    state.alerts.push({id:Date.now(), symbol:alSymbol, dir:alDir, price:price, active:true, triggered:false});
+  }
+  const inp = document.getElementById('al-price');
+  if(inp) inp.value = '';
+  saveState();
+  renderTab();
+  checkAlerts();
+}
+function editAlert(id){
+  const a = (state.alerts||[]).find(x=>x.id===id);
+  if(!a) return;
+  editingAlertId = id;
+  alSymbol = a.symbol;
+  alDir = a.dir;
+  const p = document.getElementById('al-price');
+  if(p) p.value = a.price;
+  refreshAlertForm();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function delAlert(id){
+  state.alerts = (state.alerts||[]).filter(a=>a.id!==id);
+  if(editingAlertId===id) editingAlertId = null;
+  saveState();
+  renderTab();
+}
 async function checkAlerts(){
   const act = (state.alerts||[]).filter(a=>a.active && !a.triggered);
-  if(act.length){
-    const syms = [...new Set(act.map(a=>a.symbol))];
-    for(const s of syms){
-      const p = await fetchPrice(s);
-      if(p!=null) lastPrices[s]=p;
-    }
-    let changed = false;
-    act.forEach(a=>{
-      const p = lastPrices[a.symbol];
-      if(p==null) return;
-      const hit = (a.dir==='above' && p>=a.price) || (a.dir==='below' && p<=a.price);
-      if(hit){
-        a.triggered = true;
-        a.triggeredAt = new Date().toISOString();
-        changed = true;
-        alertNotify(a,p);
-      }
-    });
-    if(changed) saveState();
-  } else {
-    for(const s of Object.keys(FEEDS)){
-      const p = await fetchPrice(s);
-      if(p!=null) lastPrices[s]=p;
-    }
+  const syms = act.length ? [...new Set(act.map(a=>a.symbol))] : Object.keys(FEEDS);
+  for(const s of syms){
+    const p = await fetchPrice(s);
+    if(p!=null) lastPrices[s]=p;
   }
+  let changed = false;
+  act.forEach(a=>{
+    const p = lastPrices[a.symbol];
+    if(p==null) return;
+    const hit = (a.dir==='above' && p>=a.price) || (a.dir==='below' && p<=a.price);
+    if(hit){
+      a.triggered = true;
+      a.triggeredAt = new Date().toISOString();
+      changed = true;
+      alertNotify(a,p);
+    }
+  });
+  if(changed) saveState();
   updateAlertsUI();
 }
 let audioCtx = null;
-function beep(){
+function ensureAudio(){
   try{
     if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
     if(audioCtx.state==='suspended') audioCtx.resume();
+  }catch(e){}
+}
+window.addEventListener('pointerdown', ensureAudio);
+function beep(){
+  ensureAudio();
+  try{
     const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.connect(g); g.connect(audioCtx.destination);
     o.frequency.value = 880; o.type='sine';
@@ -322,23 +376,15 @@ function alertNotify(a,p){
 }
 function askNotifPermission(){
   if(!('Notification' in window)){ alert('Browserul nu suportă notificări.'); return; }
-  Notification.requestPermission().then(p=>{ alert(p==='granted' ? '✅ Notificări activate.' : 'Notificări refuzate — alertele vor face sunet + vibrație în aplicație.'); });
-}
-function addAlert(){
-  const sym = document.getElementById('al-symbol').value;
-  const dir = document.getElementById('al-dir').value;
-  const price = parseFloat(document.getElementById('al-price').value);
-  if(isNaN(price) || price<=0){ alert('Completează un preț valid.'); return; }
-  if(!state.alerts) state.alerts = [];
-  state.alerts.push({id:Date.now(), symbol:sym, dir, price, active:true, triggered:false});
-  saveState();
-  renderTab();
-  checkAlerts();
-}
-function delAlert(id){
-  state.alerts = (state.alerts||[]).filter(a=>a.id!==id);
-  saveState();
-  renderTab();
+  if(Notification.permission==='granted'){ alert('✅ Notificările sunt deja active.'); return; }
+  if(Notification.permission==='denied'){
+    alert('Notificările sunt BLOCATE pentru acest site.\n\nDeblocare: apasă iconița 🔒/⚙ din bara de adrese → „Site settings” → „Notifications” → Allow.\n\nDacă ai văzut mesajul „This site can’t ask for your permission”: închide bulele/overlay-urile din alte aplicații (baloane WhatsApp, filtre de luminozitate), apoi apasă „Try again”.');
+    return;
+  }
+  Notification.requestPermission().then(p=>{
+    if(p==='granted'){ alert('✅ Notificări activate.'); }
+    else{ alert('Notificări refuzate — alertele vor face sunet + vibrație în aplicație.\n\nDacă apare „This site can’t ask for your permission”: închide bulele/overlay-urile din alte aplicații și reîncearcă.'); }
+  });
 }
 function priceChipsHTML(){
   return Object.keys(FEEDS).map(s=>{
@@ -348,21 +394,34 @@ function priceChipsHTML(){
 }
 function alertsListHTML(){
   const A = state.alerts||[];
-  if(!A.length) return `<p class="small-note">Nicio alertă încă. Adaugă una mai sus.</p>`;
+  if(!A.length) return `<p class="small-note">Nicio alertă încă. Alege instrumentul + condiția, scrie prețul și apasă „+ Adaugă alerta”. Poți pune oricâte, una sub alta.</p>`;
   return A.slice().reverse().map(a=>{
     const p = lastPrices[a.symbol];
     return `<div class="breakdown-row" style="${a.triggered?'border-color:var(--orange);color:var(--orange)':''}">
-      <span class="name">${a.triggered?'🔔':'🎯'} ${a.symbol} ${a.dir==='above'?'peste':'sub'} ${a.price}</span>
-      <span class="mid">${p!=null?('acum: '+fmtPrice(p)):'—'}</span>
-      <span><button class="link-btn" style="color:var(--red)" onclick="delAlert(${a.id})">✕</button></span>
+      <span class="name">${a.triggered?'🔔':''} ${a.symbol} ${a.dir==='above'?'peste':'sub'} ${a.price}</span>
+      <span class="mid" id="ap-${a.id}">${p!=null?('acum: '+fmtPrice(p)):'—'}</span>
+      <span style="display:flex;gap:12px;align-items:center">
+        <button class="link-btn" style="font-size:.95rem" onclick="editAlert(${a.id})" title="Editează">✎</button>
+        <button class="link-btn" style="color:var(--red);font-size:.95rem" onclick="delAlert(${a.id})" title="Șterge">✕</button>
+      </span>
     </div>`;
   }).join('');
 }
 function updateAlertsUI(){
   const box = document.getElementById('alerts-list');
-  if(box) box.innerHTML = alertsListHTML();
+  const sig = JSON.stringify((state.alerts||[]).map(a=>[a.id,a.symbol,a.dir,a.price,a.triggered]));
+  if(box){
+    if(box.dataset.sig !== sig){ box.innerHTML = alertsListHTML(); box.dataset.sig = sig; }
+    (state.alerts||[]).forEach(a=>{
+      const el = document.getElementById('ap-'+a.id);
+      if(el) el.textContent = lastPrices[a.symbol]!=null ? ('acum: '+fmtPrice(lastPrices[a.symbol])) : '—';
+    });
+  }
   const chips = document.getElementById('price-chips');
-  if(chips) chips.innerHTML = priceChipsHTML();
+  if(chips){
+    const html = priceChipsHTML();
+    if(chips.dataset.h !== html){ chips.dataset.h = html; chips.innerHTML = html; }
+  }
 }
 
 /* ---------------- SESSIONS & NEWS (ore în ora Bucureștiului) ---------------- */
@@ -563,7 +622,7 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.9 — alerte de preț live</p>
+    <p class="footer-note">Ciubi · Trading Companion V2.10 — alerte editabile + notificări</p>
     <button id="undo-btn" title="Anulează ultima modificare (pas cu pas)" onclick="doUndo()">↩ Undo (0)</button>
   `;
   renderTab();
@@ -632,15 +691,15 @@ function viewDashboard(){
     <div class="card">
       <div class="card-head"><h2>🔔 Alerte de preț (live)</h2><button class="btn small secondary" onclick="askNotifPermission()">Notificări</button></div>
       <div id="price-chips" style="margin-bottom:6px">${priceChipsHTML()}</div>
-      <div class="field"><label>Instrument</label><select id="al-symbol">${Object.keys(FEEDS).map(v=>`<option>${v}</option>`).join('')}</select></div>
-      <div class="row2">
-        <div class="field"><label>Condiție</label><select id="al-dir"><option value="above">peste</option><option value="below">sub</option></select></div>
-        <div class="field"><label>Preț</label><input id="al-price" type="number" step="any" placeholder="ex. 2400"/></div>
-      </div>
-      <button class="btn small" onclick="addAlert()">+ Adaugă alerta</button>
+      <p class="small-note" style="margin:0 0 4px">1) Instrument (apasă):</p>
+      <div id="al-sym-chips" style="margin-bottom:6px"></div>
+      <p class="small-note" style="margin:0 0 4px">2) Condiție:</p>
+      <div id="al-dir-chips" style="margin-bottom:6px"></div>
+      <div class="field"><label>3) Preț</label><input id="al-price" type="text" inputmode="decimal" placeholder="ex. 2400"/></div>
+      <button class="btn small" id="al-save-btn" onclick="submitAlert()">+ Adaugă alerta</button>
       <div style="height:8px"></div>
-      <div id="alerts-list">${alertsListHTML()}</div>
-      <p class="small-note">Feed live la 30 s: crypto prin Binance, aur/argint prin gold-api. Forex (EURUSD) și indici (ES/NQ) nu au încă feed gratuit live.</p>
+      <div id="alerts-list"></div>
+      <p class="small-note">✎ editează · ✕ șterge · poți avea oricâte alerte, una sub alta. Feed live la 30 s: crypto prin Binance, aur/argint prin gold-api.</p>
     </div>
 
     <div class="card">
@@ -1088,6 +1147,8 @@ function bindTabContentEvents(){
         renderTab();
       };
     });
+
+    refreshAlertForm();
 
     const instBtn = document.getElementById('install-btn');
     const iosHint = document.getElementById('ios-hint');
