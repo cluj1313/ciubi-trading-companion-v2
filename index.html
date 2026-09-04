@@ -270,14 +270,21 @@
   .mini-stat-label{display:block;font-size:.58rem;letter-spacing:.8px;color:var(--text-faint);margin-bottom:3px;text-transform:uppercase;}
   .mini-stat-val{font-size:.95rem;font-weight:800;}
 
+  .tag{
+    display:inline-flex;align-items:center;gap:7px;
+    background:var(--bg-2);border:1px solid var(--border);
+    border-radius:999px;padding:4px 11px;
+    font-size:.72rem;font-weight:700;margin:0 4px 4px 0;
+  }
+
   .shield-ok{border:1px solid var(--green);color:var(--green);border-radius:10px;padding:8px 10px;font-size:.75rem;font-weight:700;margin-bottom:6px;background:rgba(62,230,166,.06);}
   .shield-warn{border:1px solid var(--orange);color:var(--orange);border-radius:10px;padding:8px 10px;font-size:.75rem;font-weight:700;margin-bottom:6px;background:rgba(245,166,35,.08);}
   .shield-stop{border:2px solid var(--red);color:var(--red);border-radius:12px;padding:14px 10px;font-size:1rem;font-weight:800;text-align:center;margin-bottom:8px;letter-spacing:.5px;background:rgba(251,113,133,.12);}
 
   #undo-btn{
     position:fixed;right:12px;bottom:12px;z-index:50;
-    background:var(--card-2);color:var(--text-dim);
-    border:1px solid var(--border-strong);border-radius:999px;
+    background:var(--card-2);color:var(--text);
+    border:1px solid var(--orange);border-radius:999px;
     padding:9px 16px;font-size:.78rem;font-weight:700;cursor:pointer;
     box-shadow:0 4px 14px rgba(0,0,0,.5);
   }
@@ -296,6 +303,7 @@ const DEFAULT_STATE = {
   trades: [],
   nextFocus: '',
   shield: { enabled:false, account:'10000', dailyPct:'4', maxDDPct:'8', riskPerTrade:'100' },
+  instruments: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','XAUUSD'],
   quickTrade: { pair:'EURUSD', direction:'BUY', htfBias:'BULLISH', date: new Date().toISOString().slice(0,10), setup:'A+', entry:'', sl:'', exit:'', resultR:'', note:'Clean trade', ruleCompliance:'100% — followed rules', session:'London', additionalNote:'' }
 };
 
@@ -339,7 +347,7 @@ function doUndo(){
 }
 function updateUndoBtn(){
   const b = document.getElementById('undo-btn');
-  if(b) b.style.opacity = undoStack.length ? '1' : '.35';
+  if(b) b.textContent = undoStack.length ? `↩ Undo (${undoStack.length})` : '↩ Undo';
 }
 
 async function loadState(){
@@ -358,6 +366,7 @@ async function loadState(){
       if(!state.plan.checklist) state.plan.checklist = Array(10).fill(false);
       if(!state.trades) state.trades = [];
       if(!state.shield) state.shield = JSON.parse(JSON.stringify(DEFAULT_STATE.shield));
+      if(!state.instruments || !state.instruments.length) state.instruments = JSON.parse(JSON.stringify(DEFAULT_STATE.instruments));
     }
   }catch(e){ /* no saved state yet */ }
   snapshot = JSON.stringify(state);
@@ -386,6 +395,7 @@ function importBackup(file){
       if(!state.plan.checklist) state.plan.checklist = Array(10).fill(false);
       if(!state.trades) state.trades = [];
       if(!state.shield) state.shield = JSON.parse(JSON.stringify(DEFAULT_STATE.shield));
+      if(!state.instruments || !state.instruments.length) state.instruments = JSON.parse(JSON.stringify(DEFAULT_STATE.instruments));
       saveState();
       render();
       alert('✅ Backup restaurat cu succes!');
@@ -408,9 +418,37 @@ const CHECKLIST_ITEMS = [
   'Sesiunea si stirile sunt ok'
 ];
 
-const PAIRS = ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','XAUUSD'];
 const SETUPS = ['A+','A','B','C'];
 const SESSIONS = ['Asia','London','New York','London/NY overlap'];
+
+/* ---------------- instruments management ---------------- */
+function pairOptions(extra){
+  const list = state.instruments.slice();
+  if(extra && !list.includes(extra)) list.push(extra);
+  return list;
+}
+function addInstrument(){
+  const el = document.getElementById('new-inst');
+  if(!el) return;
+  const v = (el.value||'').trim().toUpperCase();
+  if(!v) return;
+  if(!state.instruments.includes(v)) state.instruments.push(v);
+  saveState();
+  renderTab();
+}
+function delInstrument(v){
+  if(!confirm(`Elimini ${v} din lista de instrumente?\n(Trade-urile existente rămân în jurnal.)`)) return;
+  state.instruments = state.instruments.filter(x=>x!==v);
+  saveState();
+  renderTab();
+}
+function renInstrument(v){
+  const nv = (prompt(`Redenumește ${v}:`, v)||'').trim().toUpperCase();
+  if(!nv || nv===v) return;
+  state.instruments = state.instruments.map(x=>x===v?nv:x);
+  saveState();
+  renderTab();
+}
 
 /* ---------------- R calculation ---------------- */
 function calcR(t){
@@ -492,7 +530,7 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.2 — datele sunt salvate automat</p>
+    <p class="footer-note">Ciubi · Trading Companion V2.3 — datele sunt salvate automat</p>
     <button id="undo-btn" onclick="doUndo()">↩ Undo</button>
   `;
   renderTab();
@@ -628,7 +666,7 @@ function viewPlan(){
 
     ${planStep(1,'Market', `
       <div class="field"><label>Pair</label>
-        <select id="p-pair">${['-',...PAIRS].map(v=>`<option ${p.pair===v?'selected':''}>${v}</option>`).join('')}</select>
+        <select id="p-pair">${['-',...pairOptions(p.pair)].map(v=>`<option ${p.pair===v?'selected':''}>${v}</option>`).join('')}</select>
       </div>
       <div class="field"><label>Direction</label>
         <select id="p-direction">${['-','BUY','SELL'].map(v=>`<option ${p.direction===v?'selected':''}>${v}</option>`).join('')}</select>
@@ -747,9 +785,20 @@ function viewTrades(){
   const q = state.quickTrade;
   return `
     ${shieldBannerHTML()}
+
+    <div class="card">
+      <div class="card-head"><h2>🧾 Instrumentele tale</h2></div>
+      <p class="card-sub">Adaugă, redenumește (✎) sau elimină (✕) perechi, aur, indici — ES, NQ, EQ, crypto etc.</p>
+      <div>${state.instruments.map(v=>`<span class="tag">${v} <button class="link-btn" onclick="renInstrument('${v}')" title="Redenumește">✎</button><button class="link-btn" style="color:var(--red)" onclick="delInstrument('${v}')" title="Elimină">✕</button></span>`).join('')}</div>
+      <div class="field" style="margin-top:6px">
+        <input id="new-inst" placeholder="ex. ES, NQ, XAUUSD, BTCUSD…"/>
+        <button class="btn small" onclick="addInstrument()">+ Adaugă</button>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-head"><h2>Add paper trade</h2><button class="btn small secondary" id="use-plan-btn">Use active plan</button></div>
-      <div class="field"><label>Pair</label><select id="q-pair">${PAIRS.map(v=>`<option ${q.pair===v?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="field"><label>Pair</label><select id="q-pair">${pairOptions(q.pair).map(v=>`<option ${q.pair===v?'selected':''}>${v}</option>`).join('')}</select></div>
       <div class="field"><label>Direction</label><select id="q-direction">${['BUY','SELL'].map(v=>`<option ${q.direction===v?'selected':''}>${v}</option>`).join('')}</select></div>
       <div class="field"><label>HTF Bias</label><select id="q-htf">${['BULLISH','BEARISH','NEUTRAL'].map(v=>`<option ${q.htfBias===v?'selected':''}>${v}</option>`).join('')}</select></div>
       <div class="field"><label>Date</label><input id="q-date" type="date" value="${q.date}"/></div>
