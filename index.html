@@ -705,7 +705,7 @@ function viewDashboard(){
       <div class="card-head"><h2>Pair performance</h2><button class="btn small secondary" data-goto="trades">+ Trade</button></div>
       ${pairRanking.length===0 ? `<div class="empty">Fara trade-uri inca.</div>` : `
       <div class="table-wrap"><table class="journal"><thead><tr><th>Rank</th><th>Pair</th><th>Trades</th><th>Win%</th><th>R</th></tr></thead><tbody>
-        ${pairRanking.map((p,i)=>`<tr><td>#${i+1}</td><td>${p[0]</td><td>${p[1].trades}</td><td>${(p[1].wins/p[1].trades*100).toFixed(0)}%</td><td class="${rClass(p[1].R)}">${fmtR(p[1].R)}</td></tr>`).join('')}
+        ${pairRanking.map((p,i)=>`<tr><td>#${i+1}</td><td>${p[0]}</td><td>${p[1].trades}</td><td>${(p[1].wins/p[1].trades*100).toFixed(0)}%</td><td class="${rClass(p[1].R)}">${fmtR(p[1].R)}</td></tr>`).join('')}
       </tbody></table></div>`}
     </div>
 
