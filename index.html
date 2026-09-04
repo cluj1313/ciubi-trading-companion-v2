@@ -242,7 +242,7 @@ const CHECKLIST_ITEMS = [
 const SETUPS = ['A+','A','B','C'];
 const SESSIONS = ['Asia','London','New York','London/NY overlap'];
 
-/* ---------------- FEEDS dinamice (grupuri editabile Forex / Stocks) ---------------- */
+/* ---------------- FEEDS dinamice ---------------- */
 const BINANCE_MAP = {BTCUSD:'BTCUSDT', ETHUSD:'ETHUSDT', SOLUSD:'SOLUSDT', BNBUSD:'BNBUSDT'};
 const FEED_OVERRIDES = {
   'ES': {type:'yahoo', sym:'ES=F'},
@@ -362,14 +362,19 @@ function delAlertKey(k){
   saveState();
   renderTab();
 }
-/* V2.13: o singură listă (cea editabilă), cu prețul live direct pe chip */
+function resetAlertGroups(){
+  if(!confirm('Restabilești listele implicite Forex & Stocks?\n(Simbolurile adăugate de tine se pierd.)')) return;
+  state.alertGroups = JSON.parse(JSON.stringify(DEFAULT_STATE.alertGroups));
+  saveState();
+  renderTab();
+}
+/* V2.14: chips doar cu denumire; prețul live la punctul 3 */
 function refreshAlertForm(){
   const symBox = document.getElementById('al-sym-chips');
   if(symBox){
     const chip = (k)=>{
       const on = k===alSymbol;
-      const p = lastPrices[k];
-      return `<span class="tag" style="cursor:pointer;${on?'border-color:var(--orange);color:var(--orange);':''}" onclick="setAlSymbol('${k}')">${k} <span id="sp-${k}" style="opacity:.75">${p!=null?fmtPrice(p):'…'}</span>${alEditMode?` <b style="color:var(--red)" onclick="event.stopPropagation();delAlertKey('${k}')">✕</b>`:''}</span>`;
+      return `<span class="tag" style="cursor:pointer;${on?'border-color:var(--orange);color:var(--orange);':''}" onclick="setAlSymbol('${k}')">${k}${alEditMode?` <b style="color:var(--red)" onclick="event.stopPropagation();delAlertKey('${k}')">✕</b>`:''}</span>`;
     };
     symBox.innerHTML =
       `<p class="small-note" style="margin:0 0 3px">FOREX <button class="link-btn" onclick="toggleAlEdit()">${alEditMode?'✅ Gata':'✎ Edit'}</button></p>` +
@@ -378,7 +383,7 @@ function refreshAlertForm(){
       stocksSorted().map(chip).join('') +
       (alEditMode ? `
         <div class="field" style="margin-top:8px"><label>Adaugă</label><input id="al-new-key" placeholder="ex. GBPJPY sau ES=F sau AAPL"/></div>
-        <div style="display:flex;gap:8px"><button class="btn small" onclick="addAlertKey('forex')">+ Forex</button><button class="btn small secondary" onclick="addAlertKey('stocks')">+ Stocks</button></div>` : '');
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" onclick="addAlertKey('forex')">+ Forex</button><button class="btn small secondary" onclick="addAlertKey('stocks')">+ Stocks</button><button class="btn small secondary" onclick="resetAlertGroups()">⟲ Lista implicită</button></div>` : '');
   }
   const dirBox = document.getElementById('al-dir-chips');
   if(dirBox) dirBox.innerHTML = ['above','below'].map(d=>{
@@ -387,6 +392,13 @@ function refreshAlertForm(){
   }).join('');
   const btn = document.getElementById('al-save-btn');
   if(btn) btn.textContent = editingAlertId ? '💾 Salvează modificarea' : '+ Adaugă alerta';
+  updateLiveCur();
+}
+function updateLiveCur(){
+  const s = document.getElementById('live-sym');
+  if(s) s.textContent = alSymbol;
+  const c = document.getElementById('live-cur');
+  if(c) c.textContent = lastPrices[alSymbol]!=null ? fmtPrice(lastPrices[alSymbol]) : '…';
 }
 function submitAlert(){
   const raw = (document.getElementById('al-price').value||'').replace(',','.');
@@ -508,14 +520,10 @@ function updateAlertsUI(){
       if(el) el.textContent = lastPrices[a.symbol]!=null ? ('acum: '+fmtPrice(lastPrices[a.symbol])) : '—';
     });
   }
-  /* V2.13: actualizează prețurile direct pe chips-urile din selector */
-  Object.keys(lastPrices).forEach(k=>{
-    const sp = document.getElementById('sp-'+k);
-    if(sp) sp.textContent = fmtPrice(lastPrices[k]);
-  });
+  updateLiveCur();
 }
 
-/* ---------------- SESSIONS & NEWS (ore în ora Bucureștiului) ---------------- */
+/* ---------------- SESSIONS & NEWS ---------------- */
 let newsEvents;
 function tzHour(tz){
   try{
@@ -713,7 +721,7 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.13 — o singură listă editabilă cu prețuri live</p>
+    <p class="footer-note">Ciubi · Trading Companion V2.14 — denumiri curate + preț live la punctul 3</p>
     <button id="undo-btn" title="Anulează ultima modificare (pas cu pas)" onclick="doUndo()">↩ Undo (0)</button>
   `;
   renderTab();
@@ -785,11 +793,12 @@ function viewDashboard(){
       <div id="al-sym-chips" style="margin-bottom:6px"></div>
       <p class="small-note" style="margin:0 0 4px">2) Condiție:</p>
       <div id="al-dir-chips" style="margin-bottom:6px"></div>
-      <div class="field"><label>3) Preț</label><input id="al-price" type="text" inputmode="decimal" placeholder="ex. 1.3750"/></div>
+      <p class="small-note" style="margin:0 0 4px">3) Preț alertă pentru <b id="live-sym">—</b> · acum: <b id="live-cur" style="color:var(--green)">…</b></p>
+      <div class="field"><input id="al-price" type="text" inputmode="decimal" placeholder="scrie nivelul alertei"/></div>
       <button class="btn small" id="al-save-btn" onclick="submitAlert()">+ Adaugă alerta</button>
       <div style="height:8px"></div>
       <div id="alerts-list"></div>
-      <p class="small-note">Prețul live apare direct pe chip. ✎ Edit = adaugă/șterge simboluri în Forex sau Stocks. Forex sus (alfabetic), Stocks jos (alfabetic, crypto la sfârșit).</p>
+      <p class="small-note">Chips = doar denumire; prețul live la punctul 3 (la ~30 s). ✎ Edit = adaugă/șterge/restabilește simboluri.</p>
     </div>
 
     <div class="card">
