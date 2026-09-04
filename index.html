@@ -122,7 +122,8 @@ const DEFAULT_STATE = {
   },
   timeAlerts: { asia_open:true, asia_close:true, lon_open:true, lon_close:true, ny_open:true, ny_close:true, c1h:false, c4h:true, cdaily:true, cweekly:false },
   timeLog: [],
-  quickTrade: { pair:'EURUSD', direction:'BUY', htfBias:'BULLISH', date: new Date().toISOString().slice(0,10), setup:'A+', entry:'', sl:'', exit:'', resultR:'', note:'Clean trade', ruleCompliance:'100% — followed rules', session:'London', additionalNote:'' }
+  dailyReviews: {},
+  quickTrade: { pair:'EURUSD', direction:'BUY', htfBias:'BULLISH', date: new Date().toISOString().slice(0,10), setup:'A+', entry:'', sl:'', exit:'', resultR:'', note:'Clean trade', ruleCompliance:'100% — followed rules', session:'London', additionalNote:'', photo:'' }
 };
 
 let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -167,6 +168,7 @@ function guardState(){
   if(!state.alertGroups || !state.alertGroups.forex || !state.alertGroups.stocks) state.alertGroups = JSON.parse(JSON.stringify(DEFAULT_STATE.alertGroups));
   if(!state.timeAlerts) state.timeAlerts = JSON.parse(JSON.stringify(DEFAULT_STATE.timeAlerts));
   if(!state.timeLog) state.timeLog = [];
+  if(!state.dailyReviews) state.dailyReviews = {};
 }
 function doUndo(){
   if(!undoStack.length) return;
@@ -232,6 +234,149 @@ function importBackup(file){
   r.readAsText(file);
 }
 
+/* ---------------- CSV export (V2.16) ---------------- */
+function exportCSV(){
+  const rows = [['Date','Pair','Direction','HTF','Setup','Entry','SL','Exit','R','Note','Compliance','Session','AddNote']];
+  state.trades.forEach(t=>{
+    const R = calcR(t);
+    rows.push([t.date,t.pair,t.direction,t.htfBias,t.setup,t.entry,t.sl,t.exit,(R==null?'':R.toFixed(2)),t.note,t.ruleCompliance,t.session,t.additionalNote]);
+  });
+  const csv = '\uFEFF' + rows.map(r=>r.map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ciubi-jurnal-' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------------- equity curve (V2.16) ---------------- */
+function drawEquity(){
+  const c = document.getElementById('eq-cv');
+  if(!c) return;
+  const closed = closedTrades();
+  const x = c.getContext('2d');
+  if(!closed.length){
+    c.width = c.clientWidth*2; c.height = 200;
+    x.clearRect(0,0,c.width,c.height);
+    x.fillStyle = '#8b9bb4'; x.font = '22px system-ui';
+    x.fillText('Adaugă trade-uri pentru curba de equity.', 20, 100);
+    return;
+  }
+  let run = 0; const pts = [0];
+  closed.forEach(t=>{ run += t.R; pts.push(run); });
+  const W = c.width = c.clientWidth*2, H = c.height = 360;
+  const mn = Math.min(...pts), mx = Math.max(...pts), pad = (mx-mn)*0.15 || 1;
+  const X = i=>10 + i*(W-20)/(pts.length-1);
+  const Y = v=>H-20 - ((v-(mn-pad))/((mx+pad)-(mn-pad)))*(H-40);
+  x.clearRect(0,0,W,H);
+  if(mn<0 && mx>0){
+    x.strokeStyle='rgba(255,255,255,.15)'; x.setLineDash([6,6]);
+    x.beginPath(); x.moveTo(10,Y(0)); x.lineTo(W-10,Y(0)); x.stroke(); x.setLineDash([]);
+  }
+  x.beginPath();
+  pts.forEach((v,i)=> i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));
+  const up = pts[pts.length-1] >= 0;
+  x.strokeStyle = up ? '#3ee6a6' : '#fb7185'; x.lineWidth = 3; x.stroke();
+  x.lineTo(W-10,H); x.lineTo(10,H); x.closePath();
+  x.fillStyle = up ? 'rgba(62,230,166,.10)' : 'rgba(251,113,133,.10)'; x.fill();
+  x.fillStyle = '#8b9bb4'; x.font = '20px system-ui';
+  x.fillText('max ' + fmtR(mx), 12, 24);
+  x.fillText('min ' + fmtR(mn), 12, H-6);
+}
+
+/* ---------------- calculator pozitie (V2.16) ---------------- */
+function calcPos(){
+  const g = id=>{ const el=document.getElementById(id); return el?parseFloat(el.value):NaN; };
+  const bal = g('pc-bal'), risk = g('pc-risk'), sl = g('pc-sl'), pv = g('pc-pv');
+  const out = document.getElementById('pc-out');
+  if(!out) return;
+  const risk$ = (bal>0 && risk>0) ? bal*risk/100 : 0;
+  const lot = (risk$>0 && sl>0 && pv>0) ? risk$/(sl*pv) : 0;
+  out.innerHTML = lot>0
+    ? `<div class="mini-stat-val" style="color:var(--green)">${lot.toFixed(2)} lot</div><p class="small-note">Risc $${risk$.toFixed(0)} · SL ${sl} pips · pip value $${pv}/lot · Forex major & XAU: 10</p>`
+    : `<p class="small-note">Completează sold, risc %, SL și valoare pip.</p>`;
+}
+
+/* ---------------- poza pe trade (V2.16) ---------------- */
+let pendingPhoto = '';
+function readPhoto(file, cb){
+  const r = new FileReader();
+  r.onload = ()=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const max = 900;
+      let w = img.width, h = img.height;
+      const sc = Math.min(1, max/Math.max(w,h));
+      w = Math.round(w*sc); h = Math.round(h*sc);
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      cb(cv.toDataURL('image/jpeg',0.72));
+    };
+    img.src = r.result;
+  };
+  r.readAsDataURL(file);
+}
+function showPhoto(id){
+  const t = state.trades.find(x=>String(x.id)===String(id));
+  if(!t || !t.photo) return;
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:99;display:flex;align-items:center;justify-content:center;padding:16px';
+  d.onclick = ()=>d.remove();
+  d.innerHTML = `<img src="${t.photo}" style="max-width:100%;max-height:92%;border-radius:12px"/>`;
+  document.body.appendChild(d);
+}
+
+/* ---------------- review zilnic (V2.16) ---------------- */
+const DAILY_QS = [
+  'Am respectat planul și checklist-ul azi?',
+  'Am tranzacționat doar în sesiunea potrivită?',
+  'Am respectat riscul maxim pe trade?',
+  'Am evitat revenge / FOMO?',
+  'Am notat toate trade-urile în jurnal?'
+];
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+function dailyRec(){
+  const k = todayKey();
+  if(!state.dailyReviews[k]) state.dailyReviews[k] = {a:[false,false,false,false,false], note:''};
+  return state.dailyReviews[k];
+}
+function setDaily(i, val){
+  dailyRec().a[i] = val;
+  saveState();
+  renderDaily();
+}
+function setDailyNote(v){
+  dailyRec().note = v;
+  saveState();
+}
+function last7HTML(){
+  const rows = [];
+  for(let i=1;i<=7;i++){
+    const d = new Date(Date.now()-i*86400000).toISOString().slice(0,10);
+    const r = state.dailyReviews[d];
+    if(r){
+      const s = (r.a||[]).filter(Boolean).length;
+      rows.push(`<div class="news-row"><span>${d}</span><b>${s}/5</b></div>`);
+    }
+  }
+  return rows.length ? `<p class="small-note" style="margin:6px 0 3px">Ultimele zile:</p>` + rows.join('') : '';
+}
+function renderDaily(){
+  const box = document.getElementById('daily-box');
+  if(!box) return;
+  const r = dailyRec();
+  const score = r.a.filter(Boolean).length;
+  box.innerHTML =
+    DAILY_QS.map((q,i)=>`<label class="ta-check"><input type="checkbox" ${r.a[i]?'checked':''} onchange="setDaily(${i}, this.checked)"/> ${q}</label>`).join('') +
+    `<div class="field stacked" style="margin-top:6px"><label>Notă de seară</label><textarea onchange="setDailyNote(this.value)">${r.note||''}</textarea></div>` +
+    `<p class="small-note">Disciplină azi: <b style="color:${score>=4?'var(--green)':score>=3?'var(--orange)':'var(--red)'}">${score}/5</b></p>` +
+    last7HTML();
+}
+
 /* ---------------- constante ---------------- */
 const CHECKLIST_ITEMS = [
   'Trend aliniat pe EMA 50/200',
@@ -248,7 +393,7 @@ const CHECKLIST_ITEMS = [
 const SETUPS = ['A+','A','B','C'];
 const SESSIONS = ['Asia','London','New York','London/NY overlap'];
 
-/* ---------------- ALERTE DE TIMP (V2.15) ---------------- */
+/* ---------------- ALERTE DE TIMP ---------------- */
 const TIME_EVENTS = [
   {id:'asia_open',  label:'Asia se deschide (Tokyo)',        tz:'Asia/Tokyo',         min:9*60},
   {id:'asia_close', label:'Asia se închide',                 tz:'Asia/Tokyo',         min:15*60},
@@ -375,7 +520,7 @@ function renderTimeCard(){
   if(lg) lg.innerHTML = timeLogHTML();
 }
 
-/* ---------------- FEEDS dinamice ---------------- */
+/* ---------------- FEEDS ---------------- */
 const BINANCE_MAP = {BTCUSD:'BTCUSDT', ETHUSD:'ETHUSDT', SOLUSD:'SOLUSDT', BNBUSD:'BNBUSDT'};
 const FEED_OVERRIDES = {
   'ES': {type:'yahoo', sym:'ES=F'},
@@ -853,7 +998,7 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.15 — alerte de timp (sesiuni + lumânări)</p>
+    <p class="footer-note">Ciubi · Trading Companion V2.16 — calculator poziție + equity + CSV + poze + review zilnic</p>
     <button id="undo-btn" title="Anulează ultima modificare (pas cu pas)" onclick="doUndo()">↩ Undo (0)</button>
   `;
   renderTab();
@@ -1141,6 +1286,19 @@ function viewTrades(){
     ${shieldBannerHTML()}
 
     <div class="card">
+      <div class="card-head"><h2>🧮 Calculator de poziție</h2></div>
+      <div class="row2">
+        <div class="field"><label>Sold ($)</label><input id="pc-bal" type="number" value="${state.shield.account}" oninput="calcPos()"/></div>
+        <div class="field"><label>Risc (%)</label><input id="pc-risk" type="number" step="0.1" value="1" oninput="calcPos()"/></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>SL (pips)</label><input id="pc-sl" type="number" step="any" placeholder="ex. 25" oninput="calcPos()"/></div>
+        <div class="field"><label>Pip val/lot $</label><input id="pc-pv" type="number" step="any" value="10" oninput="calcPos()"/></div>
+      </div>
+      <div id="pc-out"><p class="small-note">Completează sold, risc %, SL și valoare pip.</p></div>
+    </div>
+
+    <div class="card">
       <div class="card-head"><h2>🧾 Instrumentele tale</h2></div>
       <p class="card-sub">Adaugă, redenumește (✎) sau elimină (✕) perechi, aur, indici — ES, NQ, EQ, crypto etc.</p>
       <div>${state.instruments.map(v=>`<span class="tag">${v} <button class="link-btn" onclick="renInstrument('${v}')" title="Redenumește">✎</button><button class="link-btn" style="color:var(--red)" onclick="delInstrument('${v}')" title="Elimină">✕</button></span>`).join('')}</div>
@@ -1169,6 +1327,7 @@ function viewTrades(){
       </div>
       <div class="field"><label>Session</label><select id="q-session">${SESSIONS.map(v=>`<option ${q.session===v?'selected':''}>${v}</option>`).join('')}</select></div>
       <div class="field"><label>Add. note</label><input id="q-addnote" type="text" placeholder="Anything important about this trade" value="${q.additionalNote}"/></div>
+      <div class="field"><label>Poză grafic</label><input id="q-photo" type="file" accept="image/*" style="padding:4px"/></div>
       <button class="btn" id="add-trade-btn">Add paper trade</button>
     </div>
 
@@ -1184,7 +1343,7 @@ function viewTrades(){
             <td>${t.date}</td><td>${t.pair}</td><td>${t.direction}</td><td>${t.htfBias}</td><td>${t.setup}</td>
             <td>${t.entry||'-'}</td><td>${t.sl||'-'}</td><td>${t.exit||'-'}</td>
             <td class="${rClass(R)}">${R===null?'open':fmtR(R)}</td>
-            <td><button class="link-btn" data-del="${t.id}">Delete</button></td>
+            <td style="white-space:nowrap">${t.photo?`<button class="link-btn" onclick="showPhoto(${t.id})">📷</button> `:''}<button class="link-btn" data-del="${t.id}">Delete</button></td>
           </tr>`;
         }).join('')}
       </tbody></table></div>`}
@@ -1268,6 +1427,11 @@ function viewReview(){
     <div class="stat"><label>Win rate</label><div class="val">${winRate.toFixed(1)}%</div></div>
 
     <div class="card">
+      <div class="card-head"><h2>📈 Curba de equity (R cumulativ)</h2><button class="btn small secondary" onclick="exportCSV()"> CSV</button></div>
+      <canvas id="eq-cv" style="width:100%;height:180px"></canvas>
+    </div>
+
+    <div class="card">
       <h2>Direction</h2>
       ${dir.map(d=>`<div class="breakdown-row"><span class="name">${d.name}</span><span class="mid">${d.wins}W / ${d.trades-d.wins}L &nbsp; ${d.trades?((d.wins/d.trades)*100).toFixed(1):'0.0'}%</span><span class="r ${rClass(d.R)}">${fmtR(d.R)}</span></div>`).join('')}
     </div>
@@ -1339,6 +1503,11 @@ function viewImprove(){
     <div class="card">
       <h2>Improve</h2>
       <p class="card-sub">Foloseste jurnalul pentru a identifica tipare de comportament repetate. Datele raman pe acest dispozitiv.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>🌙 Review zilnic</h2></div>
+      <div id="daily-box"></div>
     </div>
 
     <div class="card">
@@ -1476,7 +1645,7 @@ function bindTabContentEvents(){
         pair: p.pair||'-', direction: p.direction||'-', htfBias: p.htfBias||'-',
         setup: p.setup||'-', entry: e.entry, sl: e.sl, exit: e.exit, resultR:'',
         note: e.entryStatus, ruleCompliance:'100% — followed rules', session: p.session||'-',
-        additionalNote: `Execution quality: ${e.executionQuality}`
+        additionalNote: `Execution quality: ${e.executionQuality}`, photo:''
       };
       state.trades.push(trade);
       state.tab='trades';
@@ -1486,6 +1655,13 @@ function bindTabContentEvents(){
   }
 
   if(state.tab==='trades'){
+    calcPos();
+
+    const ph = document.getElementById('q-photo');
+    if(ph) ph.onchange = ()=>{
+      if(ph.files && ph.files[0]) readPhoto(ph.files[0], d=>{ pendingPhoto = d; alert('📸 Poză atașată — va fi salvată cu trade-ul.'); });
+    };
+
     live('q-pair', v=>state.quickTrade.pair=v);
     live('q-direction', v=>state.quickTrade.direction=v);
     live('q-htf', v=>state.quickTrade.htfBias=v);
@@ -1514,7 +1690,8 @@ function bindTabContentEvents(){
     };
     const addBtn = document.getElementById('add-trade-btn');
     if(addBtn) addBtn.onclick = ()=>{
-      state.trades.push(Object.assign({id:Date.now()}, state.quickTrade));
+      state.trades.push(Object.assign({id:Date.now(), photo:pendingPhoto||''}, state.quickTrade));
+      pendingPhoto = '';
       saveState();
       renderTab();
     };
@@ -1536,7 +1713,12 @@ function bindTabContentEvents(){
     };
   }
 
+  if(state.tab==='review'){
+    drawEquity();
+  }
+
   if(state.tab==='improve'){
+    renderDaily();
     live('next-focus', v=>state.nextFocus=v);
     const saveFocus = document.getElementById('save-focus-btn');
     if(saveFocus) saveFocus.onclick = ()=>{
