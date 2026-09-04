@@ -114,6 +114,10 @@ const DEFAULT_STATE = {
   nextFocus: '',
   shield: { enabled:false, account:'10000', dailyPct:'4', maxDDPct:'8', riskPerTrade:'100' },
   instruments: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','XAUUSD'],
+  alertGroups: {
+    forex: ['AUDCAD','AUDJPY','AUDNZD','AUDUSD','CADJPY','CHFJPY','EURAUD','EURCAD','EURCHF','EURGBP','EURJPY','EURNZD','EURUSD','GBPAUD','GBPCAD','GBPCHF','GBPJPY','GBPNZD','GBPUSD','NZDJPY','NZDUSD','USDCAD','USDCHF','USDJPY'],
+    stocks: ['DXY','ES','NQ','YM','XAGUSD','XAUUSD','BTCUSD','BNBUSD','ETHUSD','SOLUSD']
+  },
   quickTrade: { pair:'EURUSD', direction:'BUY', htfBias:'BULLISH', date: new Date().toISOString().slice(0,10), setup:'A+', entry:'', sl:'', exit:'', resultR:'', note:'Clean trade', ruleCompliance:'100% — followed rules', session:'London', additionalNote:'' }
 };
 
@@ -156,6 +160,7 @@ function guardState(){
   if(!state.alerts) state.alerts = [];
   if(!state.shield) state.shield = JSON.parse(JSON.stringify(DEFAULT_STATE.shield));
   if(!state.instruments || !state.instruments.length) state.instruments = JSON.parse(JSON.stringify(DEFAULT_STATE.instruments));
+  if(!state.alertGroups || !state.alertGroups.forex || !state.alertGroups.stocks) state.alertGroups = JSON.parse(JSON.stringify(DEFAULT_STATE.alertGroups));
 }
 function doUndo(){
   if(!undoStack.length) return;
@@ -237,68 +242,142 @@ const CHECKLIST_ITEMS = [
 const SETUPS = ['A+','A','B','C'];
 const SESSIONS = ['Asia','London','New York','London/NY overlap'];
 
-/* ---------------- PREȚURI LIVE & ALERTE (V2.11: forex + indici prin Yahoo) ---------------- */
-const FEEDS = {
-  'XAUUSD': {type:'gold', sym:'XAU'},
-  'XAGUSD': {type:'gold', sym:'XAG'},
-  'EURUSD': {type:'yahoo', sym:'EURUSD=X'},
-  'GBPUSD': {type:'yahoo', sym:'GBPUSD=X'},
-  'USDJPY': {type:'yahoo', sym:'USDJPY=X'},
-  'USDCAD': {type:'yahoo', sym:'USDCAD=X'},
-  'USDCHF': {type:'yahoo', sym:'USDCHF=X'},
-  'AUDUSD': {type:'yahoo', sym:'AUDUSD=X'},
-  'NZDUSD': {type:'yahoo', sym:'NZDUSD=X'},
-  'ES':     {type:'yahoo', sym:'ES=F'},
-  'NQ':     {type:'yahoo', sym:'NQ=F'},
-  'DXY':    {type:'yahoo', sym:'DX-Y.NYB'},
-  'BTCUSD': {type:'binance', sym:'BTCUSDT'},
-  'ETHUSD': {type:'binance', sym:'ETHUSDT'},
-  'SOLUSD': {type:'binance', sym:'SOLUSDT'},
-  'BNBUSD': {type:'binance', sym:'BNBUSDT'}
+/* ---------------- FEEDS dinamice (V2.12: grupuri editabile Forex / Stocks) ---------------- */
+const BINANCE_MAP = {BTCUSD:'BTCUSDT', ETHUSD:'ETHUSDT', SOLUSD:'SOLUSDT', BNBUSD:'BNBUSDT'};
+const FEED_OVERRIDES = {
+  'ES': {type:'yahoo', sym:'ES=F'},
+  'NQ': {type:'yahoo', sym:'NQ=F'},
+  'YM': {type:'yahoo', sym:'YM=F'},
+  'DXY': {type:'yahoo', sym:'DX-Y.NYB'}
 };
+function resolveFeed(key){
+  if(BINANCE_MAP[key]) return {type:'binance', sym:BINANCE_MAP[key]};
+  if(FEED_OVERRIDES[key]) return FEED_OVERRIDES[key];
+  if(key==='XAUUSD') return {type:'gold', sym:'XAU'};
+  if(key==='XAGUSD') return {type:'gold', sym:'XAG'};
+  if(/^[A-Z]{6}$/.test(key)) return {type:'yahoo', sym:key+'=X'};
+  return {type:'yahoo', sym:key};
+}
+function isCrypto(key){
+  const f = resolveFeed(key);
+  return f.type==='binance' || (f.type==='yahoo' && /-USD$/.test(f.sym));
+}
+function feedsMap(){
+  const m = {};
+  const g = state.alertGroups || {forex:[],stocks:[]};
+  [...(g.forex||[]), ...(g.stocks||[])].forEach(k=>{ m[k]=resolveFeed(k); });
+  return m;
+}
+function forexSorted(){ return ((state.alertGroups&&state.alertGroups.forex)||[]).slice().sort(); }
+function stocksSorted(){
+  const st = ((state.alertGroups&&state.alertGroups.stocks)||[]).slice();
+  return st.filter(k=>!isCrypto(k)).sort().concat(st.filter(k=>isCrypto(k)).sort());
+}
+
+const PROXIES = [
+  u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),
+  u=>'https://corsproxy.io/?url='+encodeURIComponent(u),
+  u=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u)
+];
+async function fetchJSON(url){
+  for(const px of PROXIES){
+    try{
+      const ctrl = new AbortController();
+      const to = setTimeout(()=>ctrl.abort(), 9000);
+      const r = await fetch(px(url), {signal:ctrl.signal});
+      clearTimeout(to);
+      if(!r.ok) continue;
+      const j = await r.json();
+      if(j) return j;
+    }catch(e){}
+  }
+  return null;
+}
+
 let lastPrices = {};
 let alSymbol = 'XAUUSD';
 let alDir = 'above';
 let editingAlertId = null;
+let alEditMode = false;
 
 async function refreshAllPrices(){
-  const bin = Object.entries(FEEDS).filter(([k,f])=>f.type==='binance');
-  try{
-    const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbols='+encodeURIComponent(JSON.stringify(bin.map(([k,f])=>f.sym))));
-    const j = await r.json();
-    (j||[]).forEach(x=>{ const e = bin.find(([k,f])=>f.sym===x.symbol); if(e) lastPrices[e[0]] = parseFloat(x.price); });
-  }catch(e){}
-  for(const [key,sym] of [['XAUUSD','XAU'],['XAGUSD','XAG']]){
+  const FM = feedsMap();
+  const bin = Object.entries(FM).filter(([k,f])=>f.type==='binance');
+  if(bin.length){
     try{
-      const r = await fetch('https://api.gold-api.com/price/'+sym);
+      const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbols='+encodeURIComponent(JSON.stringify(bin.map(([k,f])=>f.sym))));
       const j = await r.json();
-      if(j && j.price!=null) lastPrices[key] = parseFloat(j.price);
+      (j||[]).forEach(x=>{ const e = bin.find(([k,f])=>f.sym===x.symbol); if(e) lastPrices[e[0]] = parseFloat(x.price); });
     }catch(e){}
   }
-  const ymap = Object.entries(FEEDS).filter(([k,f])=>f.type==='yahoo');
-  try{
-    const syms = ymap.map(([k,f])=>f.sym).join(',');
-    const url = 'https://api.allorigins.win/raw?url='+encodeURIComponent('https://query1.finance.yahoo.com/v7/finance/spark?symbols='+syms+'&range=1d&interval=1m');
-    const r = await fetch(url);
-    const j = await r.json();
-    const res = (j && j.spark && j.spark.result) || {};
-    ymap.forEach(([k,f])=>{
-      const m = res[f.sym] && res[f.sym].response && res[f.sym].response[0];
-      if(m && m.meta && m.meta.regularMarketPrice!=null) lastPrices[k] = m.meta.regularMarketPrice;
-    });
-  }catch(e){}
+  const gold = Object.entries(FM).filter(([k,f])=>f.type==='gold');
+  for(const [k,f] of gold){
+    try{
+      const r = await fetch('https://api.gold-api.com/price/'+f.sym);
+      const j = await r.json();
+      if(j && j.price!=null) lastPrices[k] = parseFloat(j.price);
+    }catch(e){}
+  }
+  const yah = Object.entries(FM).filter(([k,f])=>f.type==='yahoo');
+  if(yah.length){
+    const j = await fetchJSON('https://query1.finance.yahoo.com/v7/finance/spark?symbols='+yah.map(([k,f])=>f.sym).join(',')+'&range=1d&interval=1m');
+    const res = (j && j.spark && j.spark.result) || null;
+    if(res){
+      yah.forEach(([k,f])=>{
+        const m = res[f.sym] && res[f.sym].response && res[f.sym].response[0];
+        if(m && m.meta && m.meta.regularMarketPrice!=null) lastPrices[k] = m.meta.regularMarketPrice;
+      });
+    } else {
+      for(const [k,f] of yah.slice(0,8)){
+        const jc = await fetchJSON('https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(f.sym)+'?interval=1m&range=1d');
+        const m = jc && jc.chart && jc.chart.result && jc.chart.result[0];
+        if(m && m.meta && m.meta.regularMarketPrice!=null) lastPrices[k] = m.meta.regularMarketPrice;
+      }
+    }
+  }
 }
 function fmtPrice(p){
   return p>=1000 ? p.toLocaleString('en-US',{maximumFractionDigits:1}) : p.toFixed(p>=100?2:4);
 }
 function setAlSymbol(s){ alSymbol = s; refreshAlertForm(); }
 function setAlDir(d){ alDir = d; refreshAlertForm(); }
+function toggleAlEdit(){ alEditMode = !alEditMode; refreshAlertForm(); }
+function addAlertKey(group){
+  const el = document.getElementById('al-new-key');
+  if(!el) return;
+  const v = (el.value||'').trim().toUpperCase().replace(/\s+/g,'');
+  if(!v){ alert('Scrie un simbol (ex. GBPJPY, ES=F, AAPL).'); return; }
+  const g = state.alertGroups;
+  if((g.forex||[]).includes(v) || (g.stocks||[]).includes(v)){ alert('Simbolul există deja.'); return; }
+  (g[group] = g[group]||[]).push(v);
+  el.value = '';
+  saveState();
+  renderTab();
+}
+function delAlertKey(k){
+  const g = state.alertGroups;
+  g.forex = (g.forex||[]).filter(x=>x!==k);
+  g.stocks = (g.stocks||[]).filter(x=>x!==k);
+  if(alSymbol===k) alSymbol = (g.forex&&g.forex[0]) || (g.stocks&&g.stocks[0]) || 'XAUUSD';
+  saveState();
+  renderTab();
+}
 function refreshAlertForm(){
   const symBox = document.getElementById('al-sym-chips');
-  if(symBox) symBox.innerHTML = Object.keys(FEEDS).map(s=>{
-    const on = s===alSymbol;
-    return `<span class="tag" style="cursor:pointer;${on?'border-color:var(--orange);color:var(--orange);':''}" onclick="setAlSymbol('${s}')">${s}</span>`;
-  }).join('');
+  if(symBox){
+    const chip = (k)=>{
+      const on = k===alSymbol;
+      return `<span class="tag" style="cursor:pointer;${on?'border-color:var(--orange);color:var(--orange);':''}" onclick="setAlSymbol('${k}')">${k}${alEditMode?` <b style="color:var(--red)" onclick="event.stopPropagation();delAlertKey('${k}')">✕</b>`:''}</span>`;
+    };
+    symBox.innerHTML =
+      `<p class="small-note" style="margin:0 0 3px">FOREX <button class="link-btn" onclick="toggleAlEdit()">${alEditMode?'✅ Gata':'✎ Edit'}</button></p>` +
+      forexSorted().map(chip).join('') +
+      `<p class="small-note" style="margin:6px 0 3px">STOCKS / indici / metale / crypto</p>` +
+      stocksSorted().map(chip).join('') +
+      (alEditMode ? `
+        <div class="field" style="margin-top:8px"><label>Adaugă</label><input id="al-new-key" placeholder="ex. GBPJPY sau ES=F sau AAPL"/></div>
+        <div style="display:flex;gap:8px"><button class="btn small" onclick="addAlertKey('forex')">+ Forex</button><button class="btn small secondary" onclick="addAlertKey('stocks')">+ Stocks</button></div>` : '');
+  }
   const dirBox = document.getElementById('al-dir-chips');
   if(dirBox) dirBox.innerHTML = ['above','below'].map(d=>{
     const on = d===alDir;
@@ -403,10 +482,12 @@ function askNotifPermission(){
   });
 }
 function priceChipsHTML(){
-  return Object.keys(FEEDS).map(s=>{
-    const p = lastPrices[s];
-    return `<span class="tag">${s} ${p!=null?fmtPrice(p):'…'}</span>`;
-  }).join('');
+  const chip = (k)=>{
+    const p = lastPrices[k];
+    return `<span class="tag">${k} ${p!=null?fmtPrice(p):'…'}</span>`;
+  };
+  return `<p class="small-note" style="margin:0 0 3px">FOREX</p>` + forexSorted().map(chip).join('') +
+         `<p class="small-note" style="margin:3px 0 3px">STOCKS / indici / metale / crypto</p>` + stocksSorted().map(chip).join('');
 }
 function alertsListHTML(){
   const A = state.alerts||[];
@@ -437,6 +518,10 @@ function updateAlertsUI(){
   if(chips){
     const html = priceChipsHTML();
     if(chips.dataset.h !== html){ chips.dataset.h = html; chips.innerHTML = html; }
+    else {
+      Object.keys(lastPrices).forEach(k=>{});
+      chips.innerHTML = html;
+    }
   }
 }
 
@@ -638,7 +723,7 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.11 — alerte forex + indici live</p>
+    <p class="footer-note">Ciubi · Trading Companion V2.12 — grupuri Forex/Stocks editabile</p>
     <button id="undo-btn" title="Anulează ultima modificare (pas cu pas)" onclick="doUndo()">↩ Undo (0)</button>
   `;
   renderTab();
@@ -715,7 +800,7 @@ function viewDashboard(){
       <button class="btn small" id="al-save-btn" onclick="submitAlert()">+ Adaugă alerta</button>
       <div style="height:8px"></div>
       <div id="alerts-list"></div>
-      <p class="small-note">✎ editează · ✕ șterge · oricâte alerte, una sub alta. Feed live ~30 s: forex & indici prin Yahoo, crypto prin Binance, aur/argint prin gold-api.</p>
+      <p class="small-note">✎ Edit = adaugă/șterge simboluri în Forex sau Stocks. Forex sus (alfabetic), Stocks jos (alfabetic, crypto la sfârșit). Feed ~30 s: Yahoo (3 proxy-uri), Binance, gold-api.</p>
     </div>
 
     <div class="card">
