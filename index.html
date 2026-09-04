@@ -311,7 +311,7 @@ let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
 
 const HAS_WS = (typeof window.storage !== 'undefined') && window.storage && (typeof window.storage.get === 'function');
 
-/* ---------------- UNDO V2.5: anuleaza DOAR datele, nu si tab-ul; pas cu pas + contador ---------------- */
+/* ---------------- UNDO V2.6: autosave total + contador mereu vizibil + pas cu pas ---------------- */
 let undoStack = [];
 let snapshot = null;
 let saveTimeout;
@@ -359,7 +359,7 @@ function doUndo(){
 }
 function updateUndoBtn(){
   const b = document.getElementById('undo-btn');
-  if(b) b.textContent = undoStack.length ? `↩ Undo (${undoStack.length})` : '↩ Undo';
+  if(b) b.textContent = `↩ Undo (${undoStack.length})`;
 }
 
 async function loadState(){
@@ -445,6 +445,7 @@ function addInstrument(){
   const v = (el.value||'').trim().toUpperCase();
   if(!v) return;
   if(!state.instruments.includes(v)) state.instruments.push(v);
+  el.value = '';
   saveState();
   renderTab();
 }
@@ -542,8 +543,8 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.5 — datele sunt salvate automat</p>
-    <button id="undo-btn" title="Anulează ultima modificare de date (nu schimbă tab-ul)" onclick="doUndo()">↩ Undo</button>
+    <p class="footer-note">Ciubi · Trading Companion V2.6 — autosave activ, datele sunt salvate automat</p>
+    <button id="undo-btn" title="Anulează ultima modificare (pas cu pas)" onclick="doUndo()">↩ Undo (0)</button>
   `;
   renderTab();
   bindTabEvents();
@@ -568,6 +569,12 @@ function renderTab(){
   if(state.tab==='review') c.innerHTML = viewReview();
   if(state.tab==='improve') c.innerHTML = viewImprove();
   bindTabContentEvents();
+}
+
+/* ---------------- live binding: orice modificare = autosave + pas Undo ---------------- */
+function live(id, fn){
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('change', ()=>{ fn(el.value); saveState(); });
 }
 
 /* =====================================================
@@ -1026,7 +1033,7 @@ function viewImprove(){
 }
 
 /* =====================================================
-   EVENT BINDING per tab
+   EVENT BINDING per tab (cu autosave live)
 ===================================================== */
 function bindTabContentEvents(){
   if(state.tab==='dashboard'){
@@ -1058,6 +1065,16 @@ function bindTabContentEvents(){
   });
 
   if(state.tab==='plan'){
+    live('p-pair', v=>state.plan.pair=valOrEmpty(v));
+    live('p-direction', v=>state.plan.direction=valOrEmpty(v));
+    live('p-htf', v=>state.plan.htfBias=valOrEmpty(v));
+    live('p-session', v=>state.plan.session=valOrEmpty(v));
+    live('p-setup', v=>state.plan.setup=valOrEmpty(v));
+    live('p-setupnotes', v=>state.plan.setupNotes=v);
+    live('p-risk', v=>state.plan.riskPercent=v);
+    live('p-rr', v=>state.plan.plannedRR=v);
+    live('p-decision', v=>state.plan.decision=v);
+
     document.querySelectorAll('[data-stepheader]').forEach(el=>{
       el.onclick = ()=>{
         const n = parseInt(el.dataset.stepheader);
@@ -1067,9 +1084,8 @@ function bindTabContentEvents(){
     });
     document.querySelectorAll('[data-next]').forEach(el=>{
       el.onclick = ()=>{
-        readPlanFields();
         planOpenStep = parseInt(el.dataset.next);
-        saveState();
+        saveState(false);
         renderTab();
       };
     });
@@ -1083,7 +1099,6 @@ function bindTabContentEvents(){
     });
     const saveBtn = document.getElementById('save-plan-btn');
     if(saveBtn) saveBtn.onclick = ()=>{
-      readPlanFields();
       state.planActive = true;
       state.tab = 'execute';
       saveState();
@@ -1092,17 +1107,18 @@ function bindTabContentEvents(){
   }
 
   if(state.tab==='execute'){
+    live('e-entry', v=>state.activeExecution.entry=v);
+    live('e-sl', v=>state.activeExecution.sl=v);
+    live('e-tp', v=>state.activeExecution.tp=v);
+    live('e-exit', v=>state.activeExecution.exit=v);
+    live('e-quality', v=>state.activeExecution.executionQuality=v);
+    live('e-status', v=>state.activeExecution.entryStatus=v);
+
     const loadBtn = document.getElementById('load-plan-btn');
     if(loadBtn) loadBtn.onclick = ()=>{ state.planActive = true; saveState(); renderTab(); };
     const saveExec = document.getElementById('save-execution-btn');
     if(saveExec) saveExec.onclick = ()=>{
       const e = state.activeExecution;
-      e.entry = document.getElementById('e-entry').value;
-      e.sl = document.getElementById('e-sl').value;
-      e.tp = document.getElementById('e-tp').value;
-      e.exit = document.getElementById('e-exit').value;
-      e.executionQuality = document.getElementById('e-quality').value;
-      e.entryStatus = document.getElementById('e-status').value;
       const p = state.plan;
       const trade = {
         id: Date.now(),
@@ -1120,6 +1136,20 @@ function bindTabContentEvents(){
   }
 
   if(state.tab==='trades'){
+    live('q-pair', v=>state.quickTrade.pair=v);
+    live('q-direction', v=>state.quickTrade.direction=v);
+    live('q-htf', v=>state.quickTrade.htfBias=v);
+    live('q-date', v=>state.quickTrade.date=v);
+    live('q-setup', v=>state.quickTrade.setup=v);
+    live('q-entry', v=>state.quickTrade.entry=v);
+    live('q-sl', v=>state.quickTrade.sl=v);
+    live('q-exit', v=>state.quickTrade.exit=v);
+    live('q-resultr', v=>state.quickTrade.resultR=v);
+    live('q-note', v=>state.quickTrade.note=v);
+    live('q-compliance', v=>state.quickTrade.ruleCompliance=v);
+    live('q-session', v=>state.quickTrade.session=v);
+    live('q-addnote', v=>state.quickTrade.additionalNote=v);
+
     const useBtn = document.getElementById('use-plan-btn');
     if(useBtn) useBtn.onclick = ()=>{
       const p = state.plan;
@@ -1134,21 +1164,7 @@ function bindTabContentEvents(){
     };
     const addBtn = document.getElementById('add-trade-btn');
     if(addBtn) addBtn.onclick = ()=>{
-      const q = state.quickTrade;
-      q.pair = document.getElementById('q-pair').value;
-      q.direction = document.getElementById('q-direction').value;
-      q.htfBias = document.getElementById('q-htf').value;
-      q.date = document.getElementById('q-date').value;
-      q.setup = document.getElementById('q-setup').value;
-      q.entry = document.getElementById('q-entry').value;
-      q.sl = document.getElementById('q-sl').value;
-      q.exit = document.getElementById('q-exit').value;
-      q.resultR = document.getElementById('q-resultr').value;
-      q.note = document.getElementById('q-note').value;
-      q.ruleCompliance = document.getElementById('q-compliance').value;
-      q.session = document.getElementById('q-session').value;
-      q.additionalNote = document.getElementById('q-addnote').value;
-      state.trades.push(Object.assign({id:Date.now()}, q));
+      state.trades.push(Object.assign({id:Date.now()}, state.quickTrade));
       saveState();
       renderTab();
     };
@@ -1171,6 +1187,7 @@ function bindTabContentEvents(){
   }
 
   if(state.tab==='improve'){
+    live('next-focus', v=>state.nextFocus=v);
     const saveFocus = document.getElementById('save-focus-btn');
     if(saveFocus) saveFocus.onclick = ()=>{
       state.nextFocus = document.getElementById('next-focus').value;
@@ -1180,18 +1197,6 @@ function bindTabContentEvents(){
   }
 }
 
-function readPlanFields(){
-  const p = state.plan;
-  if(document.getElementById('p-pair')) p.pair = valOrEmpty(document.getElementById('p-pair').value);
-  if(document.getElementById('p-direction')) p.direction = valOrEmpty(document.getElementById('p-direction').value);
-  if(document.getElementById('p-htf')) p.htfBias = valOrEmpty(document.getElementById('p-htf').value);
-  if(document.getElementById('p-session')) p.session = valOrEmpty(document.getElementById('p-session').value);
-  if(document.getElementById('p-setup')) p.setup = valOrEmpty(document.getElementById('p-setup').value);
-  if(document.getElementById('p-setupnotes')) p.setupNotes = document.getElementById('p-setupnotes').value;
-  if(document.getElementById('p-risk')) p.riskPercent = document.getElementById('p-risk').value;
-  if(document.getElementById('p-rr')) p.plannedRR = document.getElementById('p-rr').value;
-  if(document.getElementById('p-decision')) p.decision = document.getElementById('p-decision').value;
-}
 function valOrEmpty(v){ return v==='-' ? '' : v; }
 
 loadState();
