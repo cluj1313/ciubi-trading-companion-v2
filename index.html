@@ -237,36 +237,56 @@ const CHECKLIST_ITEMS = [
 const SETUPS = ['A+','A','B','C'];
 const SESSIONS = ['Asia','London','New York','London/NY overlap'];
 
-/* ---------------- PREȚURI LIVE & ALERTE (V2.10: chips + editare + ștergere) ---------------- */
+/* ---------------- PREȚURI LIVE & ALERTE (V2.11: forex + indici prin Yahoo) ---------------- */
 const FEEDS = {
+  'XAUUSD': {type:'gold', sym:'XAU'},
+  'XAGUSD': {type:'gold', sym:'XAG'},
+  'EURUSD': {type:'yahoo', sym:'EURUSD=X'},
+  'GBPUSD': {type:'yahoo', sym:'GBPUSD=X'},
+  'USDJPY': {type:'yahoo', sym:'USDJPY=X'},
+  'USDCAD': {type:'yahoo', sym:'USDCAD=X'},
+  'USDCHF': {type:'yahoo', sym:'USDCHF=X'},
+  'AUDUSD': {type:'yahoo', sym:'AUDUSD=X'},
+  'NZDUSD': {type:'yahoo', sym:'NZDUSD=X'},
+  'ES':     {type:'yahoo', sym:'ES=F'},
+  'NQ':     {type:'yahoo', sym:'NQ=F'},
+  'DXY':    {type:'yahoo', sym:'DX-Y.NYB'},
   'BTCUSD': {type:'binance', sym:'BTCUSDT'},
   'ETHUSD': {type:'binance', sym:'ETHUSDT'},
   'SOLUSD': {type:'binance', sym:'SOLUSDT'},
-  'BNBUSD': {type:'binance', sym:'BNBUSDT'},
-  'XAUUSD': {type:'gold', sym:'XAU'},
-  'XAGUSD': {type:'gold', sym:'XAG'}
+  'BNBUSD': {type:'binance', sym:'BNBUSDT'}
 };
 let lastPrices = {};
 let alSymbol = 'XAUUSD';
 let alDir = 'above';
 let editingAlertId = null;
 
-async function fetchPrice(symbol){
-  const f = FEEDS[symbol];
-  if(!f) return null;
+async function refreshAllPrices(){
+  const bin = Object.entries(FEEDS).filter(([k,f])=>f.type==='binance');
   try{
-    if(f.type==='binance'){
-      const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol='+f.sym);
+    const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbols='+encodeURIComponent(JSON.stringify(bin.map(([k,f])=>f.sym))));
+    const j = await r.json();
+    (j||[]).forEach(x=>{ const e = bin.find(([k,f])=>f.sym===x.symbol); if(e) lastPrices[e[0]] = parseFloat(x.price); });
+  }catch(e){}
+  for(const [key,sym] of [['XAUUSD','XAU'],['XAGUSD','XAG']]){
+    try{
+      const r = await fetch('https://api.gold-api.com/price/'+sym);
       const j = await r.json();
-      return parseFloat(j.price);
-    }
-    if(f.type==='gold'){
-      const r = await fetch('https://api.gold-api.com/price/'+f.sym);
-      const j = await r.json();
-      return parseFloat(j.price);
-    }
-  }catch(e){ return lastPrices[symbol]||null; }
-  return null;
+      if(j && j.price!=null) lastPrices[key] = parseFloat(j.price);
+    }catch(e){}
+  }
+  const ymap = Object.entries(FEEDS).filter(([k,f])=>f.type==='yahoo');
+  try{
+    const syms = ymap.map(([k,f])=>f.sym).join(',');
+    const url = 'https://api.allorigins.win/raw?url='+encodeURIComponent('https://query1.finance.yahoo.com/v7/finance/spark?symbols='+syms+'&range=1d&interval=1m');
+    const r = await fetch(url);
+    const j = await r.json();
+    const res = (j && j.spark && j.spark.result) || {};
+    ymap.forEach(([k,f])=>{
+      const m = res[f.sym] && res[f.sym].response && res[f.sym].response[0];
+      if(m && m.meta && m.meta.regularMarketPrice!=null) lastPrices[k] = m.meta.regularMarketPrice;
+    });
+  }catch(e){}
 }
 function fmtPrice(p){
   return p>=1000 ? p.toLocaleString('en-US',{maximumFractionDigits:1}) : p.toFixed(p>=100?2:4);
@@ -323,12 +343,8 @@ function delAlert(id){
   renderTab();
 }
 async function checkAlerts(){
+  await refreshAllPrices();
   const act = (state.alerts||[]).filter(a=>a.active && !a.triggered);
-  const syms = act.length ? [...new Set(act.map(a=>a.symbol))] : Object.keys(FEEDS);
-  for(const s of syms){
-    const p = await fetchPrice(s);
-    if(p!=null) lastPrices[s]=p;
-  }
   let changed = false;
   act.forEach(a=>{
     const p = lastPrices[a.symbol];
@@ -622,7 +638,7 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.10 — alerte editabile + notificări</p>
+    <p class="footer-note">Ciubi · Trading Companion V2.11 — alerte forex + indici live</p>
     <button id="undo-btn" title="Anulează ultima modificare (pas cu pas)" onclick="doUndo()">↩ Undo (0)</button>
   `;
   renderTab();
@@ -695,11 +711,11 @@ function viewDashboard(){
       <div id="al-sym-chips" style="margin-bottom:6px"></div>
       <p class="small-note" style="margin:0 0 4px">2) Condiție:</p>
       <div id="al-dir-chips" style="margin-bottom:6px"></div>
-      <div class="field"><label>3) Preț</label><input id="al-price" type="text" inputmode="decimal" placeholder="ex. 2400"/></div>
+      <div class="field"><label>3) Preț</label><input id="al-price" type="text" inputmode="decimal" placeholder="ex. 1.3750"/></div>
       <button class="btn small" id="al-save-btn" onclick="submitAlert()">+ Adaugă alerta</button>
       <div style="height:8px"></div>
       <div id="alerts-list"></div>
-      <p class="small-note">✎ editează · ✕ șterge · poți avea oricâte alerte, una sub alta. Feed live la 30 s: crypto prin Binance, aur/argint prin gold-api.</p>
+      <p class="small-note">✎ editează · ✕ șterge · oricâte alerte, una sub alta. Feed live ~30 s: forex & indici prin Yahoo, crypto prin Binance, aur/argint prin gold-api.</p>
     </div>
 
     <div class="card">
