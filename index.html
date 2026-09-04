@@ -12,42 +12,19 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
-  :root{
-    --bg:#070b14;
-    --bg-2:#0b111f;
-    --card:#0f1729;
-    --card-2:#111a2e;
-    --border:rgba(255,255,255,.08);
-    --border-strong:rgba(255,255,255,.16);
-    --text:#e7ecf6;
-    --text-dim:#8291ac;
-    --text-faint:#8b9bb4;
-    --orange:#f5a623;
-    --orange-2:#f7931e;
-    --green:#3ee6a6;
-    --red:#fb7185;
-    --radius:18px;
-  }
+  :root{--bg:#070b14;--bg-2:#0b111f;--card:#0f1729;--card-2:#111a2e;--border:rgba(255,255,255,.08);--border-strong:rgba(255,255,255,.16);--text:#e7ecf6;--text-dim:#8291ac;--text-faint:#8b9bb4;--orange:#f5a623;--orange-2:#f7931e;--green:#3ee6a6;--red:#fb7185;--radius:18px;}
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    -webkit-font-smoothing:antialiased;
-    padding-bottom:16px;
-    font-size:14px;
-  }
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:16px;font-size:14px;}
   .app{max-width:760px;margin:0 auto;padding:10px 10px 4px;}
-
   header.top{margin-bottom:6px;}
   h1.logo{font-size:1.05rem;font-weight:800;letter-spacing:.2px;margin:0;display:inline;}
   h1.logo span{color:var(--orange);}
-
   nav.tabs{display:flex;gap:5px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;}
   nav.tabs::-webkit-scrollbar{display:none;}
   nav.tabs button{flex:0 0 auto;background:var(--card);border:1px solid var(--border);color:var(--text-dim);padding:6px 12px;border-radius:999px;font-size:.78rem;cursor:pointer;transition:border-color .15s,color .15s;}
   nav.tabs button.active{border-color:var(--orange);color:var(--orange);}
   hr.divider{border:none;border-top:1px solid var(--border);margin:2px 0 8px;}
-
   .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:9px 12px;margin-bottom:6px;}
   .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;gap:8px;}
   .card-head h2{font-size:.88rem;margin:0;font-weight:700;}
@@ -56,7 +33,6 @@
   .pill.on{color:var(--orange);border-color:var(--orange);}
   .pill.good{color:var(--green);border-color:var(--green);}
   .pill.bad{color:var(--red);border-color:var(--red);}
-
   .field{margin-bottom:5px;display:flex;align-items:center;gap:8px;}
   .field label{display:block;flex:0 0 84px;font-size:.58rem;letter-spacing:.5px;color:var(--text-faint);margin:0;text-transform:uppercase;}
   .field input,.field select,.field textarea{flex:1;min-width:0;width:100%;background:var(--bg-2);border:1px solid var(--border);color:var(--text);padding:6px 9px;border-radius:8px;font-size:.78rem;outline:none;font-family:inherit;}
@@ -66,13 +42,11 @@
   .field.stacked label{flex:none;display:block;margin-bottom:3px;}
   .field textarea{resize:vertical;min-height:40px;}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-
   .btn{display:inline-block;background:linear-gradient(180deg,var(--orange),var(--orange-2));color:#1a1200;border:none;padding:10px 16px;border-radius:10px;font-size:.85rem;font-weight:700;cursor:pointer;width:100%;text-align:center;}
   .btn:active{transform:translateY(1px);}
   .btn.secondary{background:transparent;color:var(--text-dim);border:1px solid var(--border-strong);font-weight:600;width:auto;}
   .btn.danger{background:transparent;color:var(--red);border:1px solid var(--red);font-weight:600;width:auto;padding:6px 12px;font-size:.72rem;}
   .btn.small{width:auto;padding:6px 12px;font-size:.72rem;}
-
   .step{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden;}
   .step.open{border-color:var(--orange);}
   .step-head{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;}
@@ -83,56 +57,46 @@
   .status{font-size:.62rem;letter-spacing:1px;color:var(--text-faint);}
   .status.open{color:var(--orange);}
   .status.done{color:var(--green);}
-
   .stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px 12px;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .stat label{font-size:.6rem;letter-spacing:.8px;color:var(--text-faint);margin:0;text-transform:uppercase;}
   .stat .val{font-size:.95rem;font-weight:800;line-height:1.1;}
   .val.green{color:var(--green);}
   .val.red{color:var(--red);}
   .val.orange{color:var(--orange);}
-
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .grid4{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
   @media(min-width:520px){.grid4{grid-template-columns:repeat(4,1fr);}}
-
   .breakdown-row{display:flex;align-items:center;justify-content:space-between;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;margin-bottom:4px;font-size:.75rem;gap:6px;}
   .breakdown-row .name{font-weight:700;letter-spacing:.2px;white-space:nowrap;}
   .breakdown-row .mid{color:var(--text-dim);font-size:.68rem;text-align:center;}
   .breakdown-row .r{font-weight:700;white-space:nowrap;}
-
   table.journal{width:100%;border-collapse:collapse;font-size:.72rem;}
   table.journal th{text-align:left;color:var(--text-faint);font-weight:600;letter-spacing:.5px;text-transform:uppercase;font-size:.58rem;padding:0 8px 6px 0;border-bottom:1px solid var(--border);white-space:nowrap;}
   table.journal td{padding:6px 8px 6px 0;border-bottom:1px solid var(--border);white-space:nowrap;}
   .table-wrap{overflow-x:auto;}
   .empty{color:var(--text-faint);text-align:center;padding:14px 8px;font-size:.78rem;}
-
   .checklist-item{display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid var(--border);cursor:pointer;}
   .checklist-item:last-child{border-bottom:none;}
   .checkbox{width:18px;height:18px;border-radius:6px;border:1.5px solid var(--border-strong);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:.68rem;color:transparent;}
   .checkbox.checked{background:var(--orange);border-color:var(--orange);color:#1a1200;font-weight:800;}
   .checklist-item span.txt{font-size:.78rem;color:var(--text);}
   .checklist-item.checked span.txt{color:var(--text-dim);text-decoration:line-through;}
-
   .footer-note{text-align:center;color:var(--text-faint);font-size:.64rem;margin:10px 0 2px;}
   .small-note{color:var(--text-faint);font-size:.68rem;line-height:1.4;}
   select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238291ac' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 10px center;background-size:14px;}
   .link-btn{background:none;border:none;color:var(--orange);font-size:.72rem;cursor:pointer;padding:0;font-weight:600;}
   .mini-stat-label{display:block;font-size:.58rem;letter-spacing:.8px;color:var(--text-faint);margin-bottom:3px;text-transform:uppercase;}
   .mini-stat-val{font-size:.95rem;font-weight:800;}
-
   .tag{display:inline-flex;align-items:center;gap:7px;background:var(--bg-2);border:1px solid var(--border);border-radius:999px;padding:4px 11px;font-size:.72rem;font-weight:700;margin:0 4px 4px 0;}
-
   .shield-ok{border:1px solid var(--green);color:var(--green);border-radius:10px;padding:8px 10px;font-size:.75rem;font-weight:700;margin-bottom:6px;background:rgba(62,230,166,.06);}
   .shield-warn{border:1px solid var(--orange);color:var(--orange);border-radius:10px;padding:8px 10px;font-size:.75rem;font-weight:700;margin-bottom:6px;background:rgba(245,166,35,.08);}
   .shield-stop{border:2px solid var(--red);color:var(--red);border-radius:12px;padding:14px 10px;font-size:1rem;font-weight:800;text-align:center;margin-bottom:8px;letter-spacing:.5px;background:rgba(251,113,133,.12);}
-
   .sess{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
   .sess-item{flex:1;min-width:100px;background:var(--bg-2);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:.7rem;line-height:1.4;}
   .sess-item.open{border-color:var(--green);color:var(--green);}
   .sess-item.closed{color:var(--text-faint);}
   .news-row{display:flex;justify-content:space-between;gap:8px;font-size:.72rem;padding:4px 0;border-bottom:1px solid var(--border);}
   .news-row:last-child{border-bottom:none;}
-
   #undo-btn{position:fixed;right:12px;bottom:12px;z-index:50;background:var(--card-2);color:var(--text);border:1px solid var(--orange);border-radius:999px;padding:9px 16px;font-size:.78rem;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.5);}
 </style>
 </head>
@@ -146,6 +110,7 @@ const DEFAULT_STATE = {
   planActive: false,
   activeExecution: { entry:'', sl:'', tp:'', exit:'', executionQuality:'Clean', entryStatus:'Waiting' },
   trades: [],
+  alerts: [],
   nextFocus: '',
   shield: { enabled:false, account:'10000', dailyPct:'4', maxDDPct:'8', riskPerTrade:'100' },
   instruments: ['EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','NZDUSD','USDCAD','XAUUSD'],
@@ -184,6 +149,14 @@ function saveState(withUndo){
   saveTimeout = setTimeout(()=>{ writeState(full); }, 150);
   updateUndoBtn();
 }
+function guardState(){
+  if(!state.plan) state.plan = JSON.parse(JSON.stringify(DEFAULT_STATE.plan));
+  if(!state.plan.checklist) state.plan.checklist = Array(10).fill(false);
+  if(!state.trades) state.trades = [];
+  if(!state.alerts) state.alerts = [];
+  if(!state.shield) state.shield = JSON.parse(JSON.stringify(DEFAULT_STATE.shield));
+  if(!state.instruments || !state.instruments.length) state.instruments = JSON.parse(JSON.stringify(DEFAULT_STATE.instruments));
+}
 function doUndo(){
   if(!undoStack.length) return;
   const prev = undoStack.pop();
@@ -191,11 +164,7 @@ function doUndo(){
   const keepTab = state.tab;
   state = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_STATE)), data);
   state.tab = keepTab;
-  if(!state.plan) state.plan = JSON.parse(JSON.stringify(DEFAULT_STATE.plan));
-  if(!state.plan.checklist) state.plan.checklist = Array(10).fill(false);
-  if(!state.trades) state.trades = [];
-  if(!state.shield) state.shield = JSON.parse(JSON.stringify(DEFAULT_STATE.shield));
-  if(!state.instruments || !state.instruments.length) state.instruments = JSON.parse(JSON.stringify(DEFAULT_STATE.instruments));
+  guardState();
   snapshot = prev;
   clearTimeout(saveTimeout);
   saveTimeout = setTimeout(()=>{ writeState(JSON.stringify(state)); }, 150);
@@ -218,11 +187,7 @@ async function loadState(){
     if(raw){
       const loaded = JSON.parse(raw);
       state = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_STATE)), loaded);
-      if(!state.plan) state.plan = JSON.parse(JSON.stringify(DEFAULT_STATE.plan));
-      if(!state.plan.checklist) state.plan.checklist = Array(10).fill(false);
-      if(!state.trades) state.trades = [];
-      if(!state.shield) state.shield = JSON.parse(JSON.stringify(DEFAULT_STATE.shield));
-      if(!state.instruments || !state.instruments.length) state.instruments = JSON.parse(JSON.stringify(DEFAULT_STATE.instruments));
+      guardState();
     }
   }catch(e){}
   snapshot = dataOnly();
@@ -247,11 +212,7 @@ function importBackup(file){
       const loaded = JSON.parse(r.result);
       if(!loaded || typeof loaded !== 'object') throw new Error('bad file');
       state = Object.assign({}, JSON.parse(JSON.stringify(DEFAULT_STATE)), loaded);
-      if(!state.plan) state.plan = JSON.parse(JSON.stringify(DEFAULT_STATE.plan));
-      if(!state.plan.checklist) state.plan.checklist = Array(10).fill(false);
-      if(!state.trades) state.trades = [];
-      if(!state.shield) state.shield = JSON.parse(JSON.stringify(DEFAULT_STATE.shield));
-      if(!state.instruments || !state.instruments.length) state.instruments = JSON.parse(JSON.stringify(DEFAULT_STATE.instruments));
+      guardState();
       saveState();
       render();
       alert('✅ Backup restaurat cu succes!');
@@ -276,7 +237,135 @@ const CHECKLIST_ITEMS = [
 const SETUPS = ['A+','A','B','C'];
 const SESSIONS = ['Asia','London','New York','London/NY overlap'];
 
-/* ---------------- SESSIONS & NEWS (V2.8: ore în ora Bucureștiului, DST automat) ---------------- */
+/* ---------------- PREȚURI LIVE & ALERTE (V2.9) ---------------- */
+const FEEDS = {
+  'BTCUSD': {type:'binance', sym:'BTCUSDT'},
+  'ETHUSD': {type:'binance', sym:'ETHUSDT'},
+  'SOLUSD': {type:'binance', sym:'SOLUSDT'},
+  'BNBUSD': {type:'binance', sym:'BNBUSDT'},
+  'XAUUSD': {type:'gold', sym:'XAU'},
+  'XAGUSD': {type:'gold', sym:'XAG'}
+};
+let lastPrices = {};
+async function fetchPrice(symbol){
+  const f = FEEDS[symbol];
+  if(!f) return null;
+  try{
+    if(f.type==='binance'){
+      const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol='+f.sym);
+      const j = await r.json();
+      return parseFloat(j.price);
+    }
+    if(f.type==='gold'){
+      const r = await fetch('https://api.gold-api.com/price/'+f.sym);
+      const j = await r.json();
+      return parseFloat(j.price);
+    }
+  }catch(e){ return lastPrices[symbol]||null; }
+  return null;
+}
+function fmtPrice(p){
+  return p>=1000 ? p.toLocaleString('en-US',{maximumFractionDigits:1}) : p.toFixed(p>=100?2:4);
+}
+async function checkAlerts(){
+  const act = (state.alerts||[]).filter(a=>a.active && !a.triggered);
+  if(act.length){
+    const syms = [...new Set(act.map(a=>a.symbol))];
+    for(const s of syms){
+      const p = await fetchPrice(s);
+      if(p!=null) lastPrices[s]=p;
+    }
+    let changed = false;
+    act.forEach(a=>{
+      const p = lastPrices[a.symbol];
+      if(p==null) return;
+      const hit = (a.dir==='above' && p>=a.price) || (a.dir==='below' && p<=a.price);
+      if(hit){
+        a.triggered = true;
+        a.triggeredAt = new Date().toISOString();
+        changed = true;
+        alertNotify(a,p);
+      }
+    });
+    if(changed) saveState();
+  } else {
+    for(const s of Object.keys(FEEDS)){
+      const p = await fetchPrice(s);
+      if(p!=null) lastPrices[s]=p;
+    }
+  }
+  updateAlertsUI();
+}
+let audioCtx = null;
+function beep(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.value = 880; o.type='sine';
+    g.gain.setValueAtTime(0.001, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.3, audioCtx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+0.6);
+    o.start(); o.stop(audioCtx.currentTime+0.65);
+  }catch(e){}
+}
+function alertNotify(a,p){
+  beep();
+  try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
+  const msg = `${a.symbol} ${a.dir==='above'?'a urcat peste':'a coborât sub'} ${a.price} — acum ${fmtPrice(p)}`;
+  try{
+    if('Notification' in window && Notification.permission==='granted'){
+      new Notification('🔔 Ciubi Alertă', {body: msg});
+    }
+  }catch(e){}
+}
+function askNotifPermission(){
+  if(!('Notification' in window)){ alert('Browserul nu suportă notificări.'); return; }
+  Notification.requestPermission().then(p=>{ alert(p==='granted' ? '✅ Notificări activate.' : 'Notificări refuzate — alertele vor face sunet + vibrație în aplicație.'); });
+}
+function addAlert(){
+  const sym = document.getElementById('al-symbol').value;
+  const dir = document.getElementById('al-dir').value;
+  const price = parseFloat(document.getElementById('al-price').value);
+  if(isNaN(price) || price<=0){ alert('Completează un preț valid.'); return; }
+  if(!state.alerts) state.alerts = [];
+  state.alerts.push({id:Date.now(), symbol:sym, dir, price, active:true, triggered:false});
+  saveState();
+  renderTab();
+  checkAlerts();
+}
+function delAlert(id){
+  state.alerts = (state.alerts||[]).filter(a=>a.id!==id);
+  saveState();
+  renderTab();
+}
+function priceChipsHTML(){
+  return Object.keys(FEEDS).map(s=>{
+    const p = lastPrices[s];
+    return `<span class="tag">${s} ${p!=null?fmtPrice(p):'…'}</span>`;
+  }).join('');
+}
+function alertsListHTML(){
+  const A = state.alerts||[];
+  if(!A.length) return `<p class="small-note">Nicio alertă încă. Adaugă una mai sus.</p>`;
+  return A.slice().reverse().map(a=>{
+    const p = lastPrices[a.symbol];
+    return `<div class="breakdown-row" style="${a.triggered?'border-color:var(--orange);color:var(--orange)':''}">
+      <span class="name">${a.triggered?'🔔':'🎯'} ${a.symbol} ${a.dir==='above'?'peste':'sub'} ${a.price}</span>
+      <span class="mid">${p!=null?('acum: '+fmtPrice(p)):'—'}</span>
+      <span><button class="link-btn" style="color:var(--red)" onclick="delAlert(${a.id})">✕</button></span>
+    </div>`;
+  }).join('');
+}
+function updateAlertsUI(){
+  const box = document.getElementById('alerts-list');
+  if(box) box.innerHTML = alertsListHTML();
+  const chips = document.getElementById('price-chips');
+  if(chips) chips.innerHTML = priceChipsHTML();
+}
+
+/* ---------------- SESSIONS & NEWS (ore în ora Bucureștiului) ---------------- */
 let newsEvents;
 function tzHour(tz){
   try{
@@ -474,7 +563,7 @@ function render(){
     </nav>
     <hr class="divider"/>
     <div id="tab-content"></div>
-    <p class="footer-note">Ciubi · Trading Companion V2.8 — PWA + ore în ora Bucureștiului</p>
+    <p class="footer-note">Ciubi · Trading Companion V2.9 — alerte de preț live</p>
     <button id="undo-btn" title="Anulează ultima modificare (pas cu pas)" onclick="doUndo()">↩ Undo (0)</button>
   `;
   renderTab();
@@ -541,10 +630,24 @@ function viewDashboard(){
     <div class="stat"><label>Best pair</label><div class="val orange">${bestPair}</div></div>
 
     <div class="card">
+      <div class="card-head"><h2>🔔 Alerte de preț (live)</h2><button class="btn small secondary" onclick="askNotifPermission()">Notificări</button></div>
+      <div id="price-chips" style="margin-bottom:6px">${priceChipsHTML()}</div>
+      <div class="field"><label>Instrument</label><select id="al-symbol">${Object.keys(FEEDS).map(v=>`<option>${v}</option>`).join('')}</select></div>
+      <div class="row2">
+        <div class="field"><label>Condiție</label><select id="al-dir"><option value="above">peste</option><option value="below">sub</option></select></div>
+        <div class="field"><label>Preț</label><input id="al-price" type="number" step="any" placeholder="ex. 2400"/></div>
+      </div>
+      <button class="btn small" onclick="addAlert()">+ Adaugă alerta</button>
+      <div style="height:8px"></div>
+      <div id="alerts-list">${alertsListHTML()}</div>
+      <p class="small-note">Feed live la 30 s: crypto prin Binance, aur/argint prin gold-api. Forex (EURUSD) și indici (ES/NQ) nu au încă feed gratuit live.</p>
+    </div>
+
+    <div class="card">
       <div class="card-head"><h2>📱 Aplicația pe telefon</h2></div>
       <p class="card-sub">Instaleaz-o ca aplicație: iconiță pe ecranul principal, pornire fără bara de adrese, funcționează și offline.</p>
       <button class="btn small" id="install-btn" style="display:none">📱 Instalează aplicația</button>
-      <p class="small-note" id="ios-hint" style="display:none">iPhone/iPad: în Safari apasă Share (⬆) → „Add to Home Screen”. Android: meniul browser (⋮) → „Add to Home screen” / „Instalează aplicația”.</p>
+      <p class="small-note" id="ios-hint" style="display:none">iPhone/iPad: în Safari apasă Share (⬆) → „Add to Home Screen”. Android: meniul browser (⋮) → „Add to Home screen”.</p>
     </div>
 
     <div class="card">
@@ -1145,8 +1248,10 @@ function valOrEmpty(v){ return v==='-' ? '' : v; }
 
 loadState();
 loadNews();
+checkAlerts();
 setInterval(tickClocks, 30000);
 setInterval(loadNews, 300000);
+setInterval(checkAlerts, 30000);
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
